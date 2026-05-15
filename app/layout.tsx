@@ -1,6 +1,11 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
+export const metadata = {
+  title: "KYA",
+  description: "Cross-Border Trade Infrastructure",
+};
+
 export default function RootLayout({
   children,
 }: {
