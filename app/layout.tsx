@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
+import PWAInstallBanner from "./components/PWAInstallBanner";
 
 export const metadata: Metadata = {
   title: "KYA Digital Services",
@@ -61,6 +62,7 @@ export default function RootLayout({
         </head>
         <body>
           {children}
+          <PWAInstallBanner />
           <script
             dangerouslySetInnerHTML={{
               __html: `
