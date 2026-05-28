@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
 
 type DocStatus = "pending" | "approved" | "rejected" | "not_uploaded";
 
@@ -69,6 +70,7 @@ export default function TransactionDetailPage() {
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
@@ -78,7 +80,7 @@ export default function TransactionDetailPage() {
 
   async function fetchData() {
     try {
-      const res = await fetch(`/api/transactions/${id}`);
+      const res = await fetch("/api/transactions/" + id);
       if (!res.ok) { router.push("/dashboard"); return; }
       const data = await res.json();
       setTransaction(data.transaction);
@@ -106,27 +108,51 @@ export default function TransactionDetailPage() {
     setUploading(docKey);
     setUploadSuccess(null);
     setUploadError(null);
+    setErrorMessage("");
 
     try {
       const existingDoc = getDoc(docKey);
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("docKey", docKey);
-      formData.append("transactionId", id);
-      formData.append("existingDocId", existingDoc?.id || "null");
-      formData.append("version", String((existingDoc?.version || 0) + 1));
+      const fileExt = file.name.split(".").pop();
+      const fileName = user.id + "/transactions/" + id + "/" + docKey + "_" + Date.now() + "." + fileExt;
 
+      // Upload directly from browser to Supabase storage
+      const supabaseDirect = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+
+      const { error: storageError } = await supabaseDirect.storage
+        .from("kya-documents")
+        .upload(fileName, file, { upsert: true });
+
+      if (storageError) throw new Error(storageError.message);
+
+      const { data: urlData } = supabaseDirect.storage
+        .from("kya-documents")
+        .getPublicUrl(fileName);
+
+      // Save document record through API
       const res = await fetch("/api/transactions/upload-document", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          docKey,
+          transactionId: id,
+          fileUrl: urlData.publicUrl,
+          fileName: file.name,
+          existingDocId: existingDoc?.id || null,
+          version: (existingDoc?.version || 0) + 1,
+        }),
       });
 
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) throw new Error("Failed to save document record");
 
       await fetchData();
       setUploadSuccess(docKey);
       setTimeout(() => setUploadSuccess(null), 3000);
-    } catch {
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      setErrorMessage(err.message || "Upload failed");
       setUploadError(docKey);
       setTimeout(() => setUploadError(null), 5000);
     } finally {
@@ -153,7 +179,6 @@ export default function TransactionDetailPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
-
       <header className="border-b border-white/10 px-8 py-5 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="text-sm text-slate-400 hover:text-white transition">
@@ -238,9 +263,7 @@ export default function TransactionDetailPage() {
               <div className="border-b border-white/10 bg-white/5 px-6 py-4 flex items-center justify-between">
                 <div>
                   <h2 className="font-semibold">Trade Documents</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Upload all required documents for this transaction
-                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">Upload all required documents for this transaction</p>
                 </div>
                 <div className="flex gap-3 text-xs">
                   <span className="text-amber-400">{totalUploaded} uploaded</span>
@@ -319,8 +342,14 @@ export default function TransactionDetailPage() {
                           >
                             {isUploading ? "Uploading..." : status === "rejected" ? "Re-upload" : status === "pending" ? "Replace" : "Upload"}
                           </button>
-                          {justSucceeded && <span className="text-xs text-emerald-400">✓ Uploaded</span>}
-                          {hasError && <span className="text-xs text-red-400">Upload failed — try again</span>}
+                          {justSucceeded && (
+                            <span className="text-xs text-emerald-400">✓ Uploaded</span>
+                          )}
+                          {hasError && (
+                            <span className="text-xs text-red-400">
+                              {errorMessage || "Upload failed — try again"}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>

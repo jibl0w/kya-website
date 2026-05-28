@@ -5,11 +5,6 @@ import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 type AccountType = "personal" | "business" | "unknown" | null;
 type DocStatus = "pending" | "approved" | "rejected" | "not_uploaded";
 
@@ -55,6 +50,7 @@ export default function DocumentsPage() {
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -97,38 +93,57 @@ export default function DocumentsPage() {
     return (doc.status || doc.verification_status || "pending") as DocStatus;
   }
 
- async function handleUpload(docKey: string, file: File) {
+  async function handleUpload(docKey: string, file: File) {
     if (!user) return;
     setUploading(docKey);
     setUploadSuccess(null);
     setUploadError(null);
+    setErrorMessage("");
 
     try {
       const existingDoc = getDocumentRecord(docKey);
       const newVersion = (existingDoc?.version || 0) + 1;
+      const fileExt = file.name.split(".").pop();
+      const fileName = user.id + "/" + docKey + "_" + Date.now() + "." + fileExt;
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("docKey", docKey);
-      formData.append("accountType", accountType || "personal");
-      formData.append("existingDocId", existingDoc?.id || "null");
-      formData.append("version", String(newVersion));
+      // Upload directly from browser to Supabase storage
+      const supabaseDirect = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
 
-      const res = await fetch("/api/upload-document", {
+      const { error: storageError } = await supabaseDirect.storage
+        .from("kya-documents")
+        .upload(fileName, file, { upsert: true });
+
+      if (storageError) throw new Error(storageError.message);
+
+      const { data: urlData } = supabaseDirect.storage
+        .from("kya-documents")
+        .getPublicUrl(fileName);
+
+      // Save document record through API route
+      const res = await fetch("/api/save-document", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          docKey,
+          fileUrl: urlData.publicUrl,
+          fileName: file.name,
+          accountType,
+          existingDocId: existingDoc?.id || null,
+          version: newVersion,
+        }),
       });
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Upload failed");
-      }
+      if (!res.ok) throw new Error("Failed to save document record");
 
       await fetchDocuments();
       setUploadSuccess(docKey);
       setTimeout(() => setUploadSuccess(null), 3000);
     } catch (err: any) {
       console.error("Upload error:", err);
+      setErrorMessage(err.message || "Upload failed");
       setUploadError(docKey);
       setTimeout(() => setUploadError(null), 5000);
     } finally {
@@ -163,7 +178,8 @@ export default function DocumentsPage() {
           <p className="text-slate-400 mb-8">
             You need to complete KYC or KYB onboarding before uploading documents.
           </p>
-          <Link href="/dashboard/onboarding" className="rounded-xl bg-amber-400 px-8 py-3 font-bold text-slate-950 transition hover:bg-amber-300">
+          <Link href="/dashboard/onboarding"
+            className="rounded-xl bg-amber-400 px-8 py-3 font-bold text-slate-950 transition hover:bg-amber-300">
             Start Onboarding →
           </Link>
         </div>
@@ -175,7 +191,9 @@ export default function DocumentsPage() {
     <main className="min-h-screen bg-slate-950 text-white">
       <header className="border-b border-white/10 px-8 py-5 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="text-sm text-slate-400 hover:text-white transition">← Dashboard</Link>
+          <Link href="/dashboard" className="text-sm text-slate-400 hover:text-white transition">
+            ← Dashboard
+          </Link>
           <span className="text-white/20">/</span>
           <span className="text-sm text-slate-400">Documents</span>
         </div>
@@ -206,7 +224,7 @@ export default function DocumentsPage() {
             { label: "Rejected", value: totalRejected, color: "text-red-400" },
           ].map((s) => (
             <div key={s.label} className="rounded-xl border border-white/10 bg-white/5 p-4 text-center">
-              <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+              <p className={"text-2xl font-black " + s.color}>{s.value}</p>
               <p className="text-xs text-slate-500 mt-1">{s.label}</p>
             </div>
           ))}
@@ -215,7 +233,9 @@ export default function DocumentsPage() {
         {allApproved && (
           <div className="mb-8 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5">
             <p className="font-semibold text-emerald-400">✓ All documents approved</p>
-            <p className="text-sm text-slate-400 mt-1">Your documents are verified. Your account is fully activated.</p>
+            <p className="text-sm text-slate-400 mt-1">
+              Your documents are verified. Your account is fully activated.
+            </p>
           </div>
         )}
 
@@ -229,16 +249,16 @@ export default function DocumentsPage() {
             const hasError = uploadError === doc.key;
 
             return (
-              <div key={doc.key} className={`rounded-2xl border p-6 transition ${config.bg}`}>
+              <div key={doc.key} className={"rounded-2xl border p-6 transition " + config.bg}>
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex items-start gap-3">
-                    <div className={`mt-1.5 h-2.5 w-2.5 rounded-full flex-shrink-0 ${config.dot}`} />
+                    <div className={"mt-1.5 h-2.5 w-2.5 rounded-full flex-shrink-0 " + config.dot} />
                     <div>
                       <p className="font-semibold text-white">{doc.label}</p>
                       <p className="text-xs text-slate-500 mt-0.5">{doc.hint}</p>
                     </div>
                   </div>
-                  <span className={`text-xs font-medium flex-shrink-0 ${config.color}`}>
+                  <span className={"text-xs font-medium flex-shrink-0 " + config.color}>
                     {config.label}
                   </span>
                 </div>
@@ -256,7 +276,7 @@ export default function DocumentsPage() {
                   <div className="mb-4">
                     <a href={record.file_url} target="_blank" rel="noopener noreferrer"
                       className="text-xs text-amber-400 hover:text-amber-300 underline">
-                      View uploaded file{record.version && record.version > 1 ? ` (version ${record.version})` : ""} →
+                      View uploaded file{record.version && record.version > 1 ? " (v" + record.version + ")" : ""} →
                     </a>
                   </div>
                 )}
@@ -276,17 +296,30 @@ export default function DocumentsPage() {
                     <button
                       onClick={() => fileRefs.current[doc.key]?.click()}
                       disabled={isUploading}
-                      className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${
-                        status === "rejected"
+                      className={
+                        "rounded-xl px-5 py-2.5 text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed " +
+                        (status === "rejected"
                           ? "bg-red-500 text-white hover:bg-red-400"
-                          : "bg-amber-400 text-slate-950 hover:bg-amber-300"
-                      }`}
+                          : "bg-amber-400 text-slate-950 hover:bg-amber-300")
+                      }
                     >
-                      {isUploading ? "Uploading..." : status === "rejected" ? "Re-upload Document" : status === "pending" ? "Replace Document" : "Upload Document"}
+                      {isUploading
+                        ? "Uploading..."
+                        : status === "rejected"
+                        ? "Re-upload Document"
+                        : status === "pending"
+                        ? "Replace Document"
+                        : "Upload Document"}
                     </button>
 
-                    {justSucceeded && <span className="text-xs text-emerald-400 font-medium">✓ Uploaded successfully</span>}
-                    {hasError && <span className="text-xs text-red-400 font-medium">Upload failed — please try again</span>}
+                    {justSucceeded && (
+                      <span className="text-xs text-emerald-400 font-medium">✓ Uploaded successfully</span>
+                    )}
+                    {hasError && (
+                      <span className="text-xs text-red-400 font-medium">
+                        {errorMessage || "Upload failed — please try again"}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -297,8 +330,11 @@ export default function DocumentsPage() {
         {totalUploaded === totalRequired && !allApproved && (
           <div className="mt-8 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6 text-center">
             <p className="font-semibold text-white mb-1">All documents uploaded</p>
-            <p className="text-sm text-slate-400 mb-4">Our compliance team will review within 2 business days.</p>
-            <Link href="/dashboard" className="inline-block rounded-xl bg-amber-400 px-8 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-300">
+            <p className="text-sm text-slate-400 mb-4">
+              Our compliance team will review your documents within 2 business days.
+            </p>
+            <Link href="/dashboard"
+              className="inline-block rounded-xl bg-amber-400 px-8 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-300">
               Return to Dashboard
             </Link>
           </div>
