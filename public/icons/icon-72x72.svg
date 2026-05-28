@@ -1,0 +1,30 @@
+<svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
+  <rect width="72" height="72" rx="14.4" fill="#020617"/>
+  <rect width="72" height="72" rx="14.4" fill="url(#grad)"/>
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#020617;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <text 
+    x="50%" 
+    y="52%" 
+    dominant-baseline="middle" 
+    text-anchor="middle" 
+    font-family="Georgia, serif" 
+    font-weight="900" 
+    font-size="27.36" 
+    fill="white"
+  >KY</text>
+  <text 
+    x="49.32000000000001" 
+    y="52%" 
+    dominant-baseline="middle" 
+    text-anchor="middle" 
+    font-family="Georgia, serif" 
+    font-weight="900" 
+    font-size="27.36" 
+    fill="#f59e0b"
+  >A</text>
+</svg>
