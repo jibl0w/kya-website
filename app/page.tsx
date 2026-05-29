@@ -166,7 +166,7 @@ export default async function HomePage() {
               { step: "01", title: "KYC / KYB Verification", text: "Customers complete identity or business verification through our compliance-first onboarding." },
               { step: "02", title: "Supplier Selection", text: "Browse and select from KYA-verified suppliers across 5 key trade categories." },
               { step: "03", title: "Form M Submission", text: "CBN Form M submitted through our appointed Authorised Dealer bank." },
-              { step: "04", title: "Naira Funding", text: "Customer funds the transaction in naira through Source Microfinance Bank." },
+              { step: "04", title: "Naira Funding", text: "Customer funds the transaction in naira through our Nigerian Banking Partner." },
               { step: "05", title: "LC Issuance", text: "Letter of Credit issued through Unity Bank to secure the trade." },
               { step: "06", title: "Pre-Shipment Inspection", text: "KYA-appointed inspectors verify goods before shipment from China." },
               { step: "07", title: "Shipment & Documents", text: "Shipping documents verified — Bill of Lading, Commercial Invoice, Packing List." },
@@ -226,9 +226,9 @@ export default async function HomePage() {
           </p>
           <div className="grid gap-6 md:grid-cols-3">
             {[
-              { name: "Source Microfinance Bank", role: "Naira Collection", detail: "Receives naira funding from customers. Regulated by CBN." },
-              { name: "Unity Bank", role: "LC Issuance", detail: "Issues Letters of Credit for all KYA trade transactions. CBN-licensed." },
-              { name: "ROECNY Digital Banking", role: "Offshore Settlement", detail: "MAS-regulated Singapore digital bank. Holds USD and executes RMB settlement via CIPS." },
+              { name: "CBN-Licensed Collection Bank", role: "Naira Collection", detail: "A CBN-licensed Nigerian bank receives and holds naira funding from customers before FX processing." },
+              { name: "CBN-Licensed Issuing Bank", role: "LC Issuance", detail: "A CBN-licensed Nigerian bank issues Letters of Credit for all KYA trade transactions." },
+              { name: "MAS-Regulated Digital Bank", role: "Offshore Settlement", detail: "A MAS-regulated Singapore digital bank holds USD and executes RMB settlement via CIPS to Chinese suppliers." },
             ].map((partner) => (
               <div key={partner.name} className="rounded-3xl border border-white/10 bg-slate-950 p-8">
                 <p className="text-xs font-medium uppercase tracking-widest text-amber-400 mb-3">{partner.role}</p>
