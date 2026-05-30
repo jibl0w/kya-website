@@ -102,6 +102,119 @@ const sc: Record<string, string> = {
   pending: "text-amber-400 border-amber-500/30 bg-amber-500/10",
 };
 
+// ActionButtons is defined OUTSIDE the main component to prevent remounting on state change
+interface ActionButtonsProps {
+  docId: string;
+  status: string;
+  isTxnDoc: boolean;
+  processingId: string | null;
+  rejectionReason: Record<string, string>;
+  showRejectInput: Record<string, boolean>;
+  onReasonChange: (docId: string, value: string) => void;
+  onToggleReject: (docId: string) => void;
+  onAction: (docId: string, action: "approve" | "reject", isTxnDoc: boolean) => void;
+}
+
+function ActionButtons({
+  docId, status, isTxnDoc,
+  processingId, rejectionReason, showRejectInput,
+  onReasonChange, onToggleReject, onAction
+}: ActionButtonsProps) {
+  const isProcessing = processingId === docId;
+
+  if (status === "approved") {
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-emerald-400 font-medium">✓ Approved</p>
+          <button onClick={() => onToggleReject(docId)} disabled={isProcessing}
+            className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50">
+            Reject
+          </button>
+        </div>
+        {showRejectInput[docId] && (
+          <div className="flex gap-3 items-start mt-1">
+            <input
+              type="text"
+              value={rejectionReason[docId] || ""}
+              onChange={e => onReasonChange(docId, e.target.value)}
+              placeholder="Enter rejection reason (required)"
+              className="flex-1 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-red-400/50"
+            />
+            <button onClick={() => onAction(docId, "reject", isTxnDoc)} disabled={isProcessing}
+              className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-400 transition disabled:opacity-50 flex-shrink-0">
+              {isProcessing ? "..." : "Confirm"}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (status === "rejected") {
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
+          <p className="text-xs text-red-400 font-medium">✕ Rejected</p>
+          <button onClick={() => onAction(docId, "approve", isTxnDoc)} disabled={isProcessing}
+            className="rounded-xl bg-emerald-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-400 transition disabled:opacity-50">
+            {isProcessing ? "Processing..." : "Re-approve"}
+          </button>
+          <button onClick={() => onToggleReject(docId)} disabled={isProcessing}
+            className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50">
+            New Reason
+          </button>
+        </div>
+        {showRejectInput[docId] && (
+          <div className="flex gap-3 items-start mt-1">
+            <input
+              type="text"
+              value={rejectionReason[docId] || ""}
+              onChange={e => onReasonChange(docId, e.target.value)}
+              placeholder="Enter new rejection reason (required)"
+              className="flex-1 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-red-400/50"
+            />
+            <button onClick={() => onAction(docId, "reject", isTxnDoc)} disabled={isProcessing}
+              className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-400 transition disabled:opacity-50 flex-shrink-0">
+              {isProcessing ? "..." : "Confirm"}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-3 flex-wrap">
+        <button onClick={() => onAction(docId, "approve", isTxnDoc)} disabled={isProcessing}
+          className="rounded-xl bg-emerald-500 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-400 transition disabled:opacity-50">
+          {isProcessing ? "Processing..." : "✓ Approve"}
+        </button>
+        <button onClick={() => onToggleReject(docId)} disabled={isProcessing}
+          className="rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50">
+          ✕ Reject
+        </button>
+      </div>
+      {showRejectInput[docId] && (
+        <div className="flex gap-3 items-start">
+          <input
+            type="text"
+            value={rejectionReason[docId] || ""}
+            onChange={e => onReasonChange(docId, e.target.value)}
+            placeholder="Enter rejection reason (required)"
+            className="flex-1 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-red-400/50"
+          />
+          <button onClick={() => onAction(docId, "reject", isTxnDoc)} disabled={isProcessing}
+            className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-400 transition disabled:opacity-50 flex-shrink-0">
+            {isProcessing ? "..." : "Confirm"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminDocumentsClient({
   documents = [],
   transactionDocuments = [],
@@ -120,7 +233,6 @@ export default function AdminDocumentsClient({
   const kycUserIds = new Set(kycProfiles.map(p => p.user_id));
   const kybUserIds = new Set(kybProfiles.map(p => p.user_id));
 
-  // Filter docs by account type
   const kycDocs = localDocs.filter(d =>
     kycUserIds.has(d.user_id) && KYC_DOC_TYPES.includes(d.document_type)
   );
@@ -173,11 +285,20 @@ export default function AdminDocumentsClient({
           ));
         }
         setShowRejectInput(prev => ({ ...prev, [docId]: false }));
+        setRejectionReason(prev => ({ ...prev, [docId]: "" }));
       }
     } finally {
       setProcessingId(null);
     }
   }
+
+  const handleReasonChange = (docId: string, value: string) => {
+    setRejectionReason(prev => ({ ...prev, [docId]: value }));
+  };
+
+  const handleToggleReject = (docId: string) => {
+    setShowRejectInput(prev => ({ ...prev, [docId]: !prev[docId] }));
+  };
 
   const kycPending = kycDocs.filter(d => getDocStatus(d) === "pending").length;
   const kybPending = kybDocs.filter(d => getDocStatus(d) === "pending").length;
@@ -205,39 +326,6 @@ export default function AdminDocumentsClient({
       acc[doc.transaction_id].push(doc);
       return acc;
     }, {} as Record<string, TxnDoc[]>);
-  }
-
-  function ActionButtons({ docId, status, isTxnDoc }: { docId: string; status: string; isTxnDoc: boolean }) {
-    const isProcessing = processingId === docId;
-    if (status === "approved") return <p className="text-xs text-emerald-400 font-medium">✓ Approved</p>;
-    if (status === "rejected") return <p className="text-xs text-red-400 font-medium">✕ Rejected</p>;
-    return (
-      <div className="flex flex-col gap-3">
-        <div className="flex gap-3 flex-wrap">
-          <button onClick={() => handleAction(docId, "approve", isTxnDoc)} disabled={isProcessing}
-            className="rounded-xl bg-emerald-500 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-400 transition disabled:opacity-50">
-            {isProcessing ? "Processing..." : "✓ Approve"}
-          </button>
-          <button onClick={() => setShowRejectInput(prev => ({ ...prev, [docId]: !prev[docId] }))} disabled={isProcessing}
-            className="rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50">
-            ✕ Reject
-          </button>
-        </div>
-        {showRejectInput[docId] && (
-          <div className="flex gap-3 items-start">
-            <input type="text" value={rejectionReason[docId] || ""}
-              onChange={e => setRejectionReason(prev => ({ ...prev, [docId]: e.target.value }))}
-              placeholder="Enter rejection reason (required)"
-              className="flex-1 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-red-400/50"
-            />
-            <button onClick={() => handleAction(docId, "reject", isTxnDoc)} disabled={isProcessing}
-              className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-400 transition disabled:opacity-50 flex-shrink-0">
-              Confirm
-            </button>
-          </div>
-        )}
-      </div>
-    );
   }
 
   function KycProfilePanel({ uid }: { uid: string }) {
@@ -428,7 +516,17 @@ export default function AdminDocumentsClient({
                       </a>
                     </div>
                   )}
-                  <ActionButtons docId={doc.id} status={getDocStatus(doc)} isTxnDoc={false} />
+                  <ActionButtons
+                    docId={doc.id}
+                    status={getDocStatus(doc)}
+                    isTxnDoc={false}
+                    processingId={processingId}
+                    rejectionReason={rejectionReason}
+                    showRejectInput={showRejectInput}
+                    onReasonChange={handleReasonChange}
+                    onToggleReject={handleToggleReject}
+                    onAction={handleAction}
+                  />
                 </div>
               ))}
             </div>
@@ -523,17 +621,17 @@ export default function AdminDocumentsClient({
               return (
                 <div key={txnId} className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
                   <div className="border-b border-white/10 bg-white/5 px-6 py-4">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start justify-between gap-4 mb-3">
                       <div>
-                        <p className="text-xs text-slate-500 mb-1">Supplier</p>
+                        <p className="text-xs text-slate-500 mb-0.5">Supplier</p>
                         <p className="font-bold text-white text-lg">{supplierName}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-slate-500 mb-1">Customer</p>
+                        <p className="text-xs text-slate-500 mb-0.5">Customer</p>
                         <p className="font-semibold text-amber-400">{customerName}</p>
                       </div>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-4">
+                    <div className="flex flex-wrap gap-4">
                       <div>
                         <p className="text-xs text-slate-500">KYA Reference</p>
                         <p className="text-sm font-mono text-white">{txnRef}</p>
@@ -541,13 +639,13 @@ export default function AdminDocumentsClient({
                       {txn?.form_m_number && (
                         <div>
                           <p className="text-xs text-slate-500">Form M Number</p>
-                          <p className="text-sm font-mono text-white">{txn.form_m_number}</p>
+                          <p className="text-sm font-mono text-blue-400">{txn.form_m_number}</p>
                         </div>
                       )}
                       {txn?.lc_number && (
                         <div>
                           <p className="text-xs text-slate-500">LC Number</p>
-                          <p className="text-sm font-mono text-white">{txn.lc_number}</p>
+                          <p className="text-sm font-mono text-purple-400">{txn.lc_number}</p>
                         </div>
                       )}
                       {txn?.total_value && (
@@ -589,7 +687,17 @@ export default function AdminDocumentsClient({
                             </a>
                           </div>
                         )}
-                        <ActionButtons docId={doc.id} status={doc.status} isTxnDoc={true} />
+                        <ActionButtons
+                          docId={doc.id}
+                          status={doc.status}
+                          isTxnDoc={true}
+                          processingId={processingId}
+                          rejectionReason={rejectionReason}
+                          showRejectInput={showRejectInput}
+                          onReasonChange={handleReasonChange}
+                          onToggleReject={handleToggleReject}
+                          onAction={handleAction}
+                        />
                       </div>
                     ))}
                   </div>
