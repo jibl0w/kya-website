@@ -22,15 +22,15 @@ export default async function AdminDocumentsPage() {
 
   const { data: transactions } = await supabaseServer
     .from("transactions")
-    .select("id, transaction_ref, supplier_name");
+    .select("id, transaction_ref, supplier_name, form_m_number, lc_number, total_value, currency");
 
   const { data: kycProfiles } = await supabaseServer
     .from("kyc_profiles")
-    .select("user_id, first_name, last_name");
+    .select("user_id, first_name, last_name, address, nationality, id_type, id_number, phone, email");
 
   const { data: kybProfiles } = await supabaseServer
     .from("kyb_profiles")
-    .select("user_id, company_name");
+    .select("user_id, company_name, cac_number, tin, business_type, registered_address, company_email, representative_title, representative_name, representative_email, representative_phone");
 
   return (
     <AdminDocumentsClient

@@ -20,18 +20,24 @@ export default async function AdminTransactionsPage() {
     .select("*")
     .order("step_number", { ascending: true });
 
+  const { data: transactionDocs } = await supabaseServer
+    .from("transaction_documents")
+    .select("*")
+    .order("uploaded_at", { ascending: false });
+
   const { data: kycProfiles } = await supabaseServer
     .from("kyc_profiles")
-    .select("user_id, first_name, last_name");
+    .select("user_id, first_name, last_name, address, nationality, phone, email");
 
   const { data: kybProfiles } = await supabaseServer
     .from("kyb_profiles")
-    .select("user_id, company_name");
+    .select("user_id, company_name, cac_number, registered_address, representative_title, representative_name, representative_phone, representative_email, company_email");
 
   return (
     <AdminTransactionsClient
       transactions={transactions || []}
       steps={steps || []}
+      transactionDocs={transactionDocs || []}
       kycProfiles={kycProfiles || []}
       kybProfiles={kybProfiles || []}
     />
