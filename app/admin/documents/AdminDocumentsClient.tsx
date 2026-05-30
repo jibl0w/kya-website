@@ -1,7 +1,6 @@
-import React, { useState } from "react";
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 
 interface KycProfile {
@@ -103,7 +102,8 @@ const sc: Record<string, string> = {
   pending: "text-amber-400 border-amber-500/30 bg-amber-500/10",
 };
 
-// ActionButtons is defined OUTSIDE the main component to prevent remounting on state change
+// ─── ALL SUBCOMPONENTS OUTSIDE MAIN COMPONENT TO PREVENT REMOUNTING ───
+
 interface ActionButtonsProps {
   docId: string;
   status: string;
@@ -114,29 +114,21 @@ interface ActionButtonsProps {
   onAction: (docId: string, action: "approve" | "reject", isTxnDoc: boolean, reason?: string) => void;
 }
 
-function ActionButtons({
-  docId, status, isTxnDoc,
-  processingId, showRejectInput,
-  onToggleReject, onAction
-}: Omit<ActionButtonsProps, "rejectionReason" | "onReasonChange"> & { onAction: (docId: string, action: "approve" | "reject", isTxnDoc: boolean, reason?: string) => void }) {
+function ActionButtons({ docId, status, isTxnDoc, processingId, showRejectInput, onToggleReject, onAction }: ActionButtonsProps) {
   const isProcessing = processingId === docId;
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   function handleConfirmReject() {
-    const reason = inputRef.current?.value || "";
-    if (!reason.trim()) {
-      alert("Please enter a rejection reason.");
-      return;
-    }
+    const reason = inputRef.current?.value?.trim() || "";
+    if (!reason) { alert("Please enter a rejection reason."); return; }
     onAction(docId, "reject", isTxnDoc, reason);
   }
 
-  const rejectInput = showRejectInput[docId] && (
-    <div className="flex gap-3 items-start mt-1">
+  const rejectInput = showRejectInput[docId] ? (
+    <div className="flex gap-3 items-start mt-2">
       <input
         ref={inputRef}
         type="text"
-        defaultValue=""
         placeholder="Enter rejection reason (required)"
         className="flex-1 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-red-400/50"
       />
@@ -145,41 +137,37 @@ function ActionButtons({
         {isProcessing ? "..." : "Confirm"}
       </button>
     </div>
+  ) : null;
+
+  if (status === "approved") return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-3">
+        <p className="text-xs text-emerald-400 font-medium">✓ Approved</p>
+        <button onClick={() => onToggleReject(docId)} disabled={isProcessing}
+          className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50">
+          Reject
+        </button>
+      </div>
+      {rejectInput}
+    </div>
   );
 
-  if (status === "approved") {
-    return (
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-3">
-          <p className="text-xs text-emerald-400 font-medium">✓ Approved</p>
-          <button onClick={() => onToggleReject(docId)} disabled={isProcessing}
-            className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50">
-            Reject
-          </button>
-        </div>
-        {rejectInput}
+  if (status === "rejected") return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-3 flex-wrap">
+        <p className="text-xs text-red-400 font-medium">✕ Rejected</p>
+        <button onClick={() => onAction(docId, "approve", isTxnDoc)} disabled={isProcessing}
+          className="rounded-xl bg-emerald-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-400 transition disabled:opacity-50">
+          {isProcessing ? "Processing..." : "Re-approve"}
+        </button>
+        <button onClick={() => onToggleReject(docId)} disabled={isProcessing}
+          className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50">
+          New Reason
+        </button>
       </div>
-    );
-  }
-
-  if (status === "rejected") {
-    return (
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-3 flex-wrap">
-          <p className="text-xs text-red-400 font-medium">✕ Rejected</p>
-          <button onClick={() => onAction(docId, "approve", isTxnDoc)} disabled={isProcessing}
-            className="rounded-xl bg-emerald-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-400 transition disabled:opacity-50">
-            {isProcessing ? "Processing..." : "Re-approve"}
-          </button>
-          <button onClick={() => onToggleReject(docId)} disabled={isProcessing}
-            className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/20 transition disabled:opacity-50">
-            New Reason
-          </button>
-        </div>
-        {rejectInput}
-      </div>
-    );
-  }
+      {rejectInput}
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -198,17 +186,132 @@ function ActionButtons({
   );
 }
 
-export default function AdminDocumentsClient({
-  documents = [],
-  transactionDocuments = [],
-  transactions = [],
-  kycProfiles = [],
-  kybProfiles = [],
-}: Props) {
+function KycProfilePanel({ profile }: { profile: KycProfile | null }) {
+  if (!profile) return null;
+  return (
+    <div className="mb-4 rounded-xl border border-white/10 bg-slate-900/50 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="rounded-full bg-blue-500/20 border border-blue-500/30 px-2 py-0.5 text-xs font-medium text-blue-400">Personal KYC</span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+        <div>
+          <p className="text-xs text-slate-500">Full Name</p>
+          <p className="text-sm font-medium text-white">{profile.first_name} {profile.last_name}</p>
+        </div>
+        {profile.nationality && <div><p className="text-xs text-slate-500">Nationality</p><p className="text-sm text-white">{profile.nationality}</p></div>}
+        {profile.address && <div className="col-span-2"><p className="text-xs text-slate-500">Residential Address</p><p className="text-sm text-white">{profile.address}</p></div>}
+        {profile.id_type && <div><p className="text-xs text-slate-500">ID Type</p><p className="text-sm text-white">{profile.id_type}</p></div>}
+        {profile.id_number && <div><p className="text-xs text-slate-500">ID Number</p><p className="text-sm font-mono text-white">{profile.id_number}</p></div>}
+        {profile.phone && <div><p className="text-xs text-slate-500">Phone</p><p className="text-sm text-white">{profile.phone}</p></div>}
+        {profile.email && <div><p className="text-xs text-slate-500">Email</p><p className="text-sm text-white">{profile.email}</p></div>}
+      </div>
+    </div>
+  );
+}
+
+function KybProfilePanel({ profile }: { profile: KybProfile | null }) {
+  if (!profile) return null;
+  return (
+    <div className="mb-4 rounded-xl border border-white/10 bg-slate-900/50 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="rounded-full bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 text-xs font-medium text-purple-400">Business KYB</span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+        <div className="col-span-2"><p className="text-xs text-slate-500">Company Name</p><p className="text-sm font-bold text-white">{profile.company_name}</p></div>
+        {profile.cac_number && <div><p className="text-xs text-slate-500">CAC Number</p><p className="text-sm font-mono text-white">{profile.cac_number}</p></div>}
+        {profile.tin && <div><p className="text-xs text-slate-500">TIN</p><p className="text-sm font-mono text-white">{profile.tin}</p></div>}
+        {profile.business_type && <div><p className="text-xs text-slate-500">Business Type</p><p className="text-sm text-white">{profile.business_type}</p></div>}
+        {profile.registered_address && <div className="col-span-2"><p className="text-xs text-slate-500">Registered Address</p><p className="text-sm text-white">{profile.registered_address}</p></div>}
+        {profile.representative_name && <div><p className="text-xs text-slate-500">Director / Representative</p><p className="text-sm font-medium text-white">{profile.representative_title} {profile.representative_name}</p></div>}
+        {profile.representative_email && <div><p className="text-xs text-slate-500">Representative Email</p><p className="text-sm text-white">{profile.representative_email}</p></div>}
+        {profile.representative_phone && <div><p className="text-xs text-slate-500">Representative Phone</p><p className="text-sm text-white">{profile.representative_phone}</p></div>}
+        {profile.company_email && <div><p className="text-xs text-slate-500">Company Email</p><p className="text-sm text-white">{profile.company_email}</p></div>}
+      </div>
+    </div>
+  );
+}
+
+interface DocCardProps {
+  doc: KycDoc;
+  processingId: string | null;
+  showRejectInput: Record<string, boolean>;
+  onToggleReject: (id: string) => void;
+  onAction: (id: string, action: "approve" | "reject", isTxnDoc: boolean, reason?: string) => void;
+}
+
+function DocCard({ doc, processingId, showRejectInput, onToggleReject, onAction }: DocCardProps) {
+  const status = doc.status || doc.verification_status || "pending";
+  return (
+    <div className="px-6 py-5">
+      <div className="flex items-start justify-between gap-4 mb-3">
+        <div>
+          <p className="font-medium text-white">{DOC_LABELS[doc.document_type] || doc.document_type.replace(/_/g, " ")}</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Uploaded {new Date(doc.uploaded_at).toLocaleDateString("en-GB")}
+            {doc.version && doc.version > 1 ? " • Version " + doc.version : ""}
+            {doc.file_name ? " • " + doc.file_name : ""}
+          </p>
+        </div>
+        <span className={"text-xs font-medium border rounded-full px-3 py-1 flex-shrink-0 " + (sc[status] || sc.pending)}>{status}</span>
+      </div>
+      {status === "rejected" && doc.rejection_reason && (
+        <div className="mb-3 rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-2">
+          <p className="text-xs text-red-300">Rejection reason: {doc.rejection_reason}</p>
+        </div>
+      )}
+      {doc.file_url && (
+        <div className="mb-3">
+          <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-400 hover:text-amber-300 underline">View document →</a>
+        </div>
+      )}
+      <ActionButtons docId={doc.id} status={status} isTxnDoc={false} processingId={processingId} showRejectInput={showRejectInput} onToggleReject={onToggleReject} onAction={onAction} />
+    </div>
+  );
+}
+
+interface TxnDocCardProps {
+  doc: TxnDoc;
+  processingId: string | null;
+  showRejectInput: Record<string, boolean>;
+  onToggleReject: (id: string) => void;
+  onAction: (id: string, action: "approve" | "reject", isTxnDoc: boolean, reason?: string) => void;
+}
+
+function TxnDocCard({ doc, processingId, showRejectInput, onToggleReject, onAction }: TxnDocCardProps) {
+  return (
+    <div className="px-6 py-5">
+      <div className="flex items-start justify-between gap-4 mb-3">
+        <div>
+          <p className="font-medium text-white">{DOC_LABELS[doc.document_type] || doc.document_type.replace(/_/g, " ")}</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Uploaded {new Date(doc.uploaded_at).toLocaleDateString("en-GB")}
+            {doc.version && doc.version > 1 ? " • Version " + doc.version : ""}
+            {doc.file_name ? " • " + doc.file_name : ""}
+          </p>
+        </div>
+        <span className={"text-xs font-medium border rounded-full px-3 py-1 flex-shrink-0 " + (sc[doc.status] || sc.pending)}>{doc.status}</span>
+      </div>
+      {doc.status === "rejected" && doc.rejection_reason && (
+        <div className="mb-3 rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-2">
+          <p className="text-xs text-red-300">Rejection reason: {doc.rejection_reason}</p>
+        </div>
+      )}
+      {doc.file_url && (
+        <div className="mb-3">
+          <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-400 hover:text-amber-300 underline">View document →</a>
+        </div>
+      )}
+      <ActionButtons docId={doc.id} status={doc.status} isTxnDoc={true} processingId={processingId} showRejectInput={showRejectInput} onToggleReject={onToggleReject} onAction={onAction} />
+    </div>
+  );
+}
+
+// ─── MAIN COMPONENT ───
+
+export default function AdminDocumentsClient({ documents = [], transactionDocuments = [], transactions = [], kycProfiles = [], kybProfiles = [] }: Props) {
   const [activeTab, setActiveTab] = useState<"kyc" | "kyb" | "trade">("kyc");
   const [filter, setFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [rejectionReason, setRejectionReason] = useState<Record<string, string>>({});
   const [showRejectInput, setShowRejectInput] = useState<Record<string, boolean>>({});
   const [localDocs, setLocalDocs] = useState<KycDoc[]>(documents);
   const [localTxnDocs, setLocalTxnDocs] = useState<TxnDoc[]>(transactionDocuments);
@@ -216,39 +319,19 @@ export default function AdminDocumentsClient({
   const kycUserIds = new Set(kycProfiles.map(p => p.user_id));
   const kybUserIds = new Set(kybProfiles.map(p => p.user_id));
 
-  const kycDocs = localDocs.filter(d =>
-    kycUserIds.has(d.user_id) && KYC_DOC_TYPES.includes(d.document_type)
-  );
-  const kybDocs = localDocs.filter(d =>
-    kybUserIds.has(d.user_id) && KYB_DOC_TYPES.includes(d.document_type)
-  );
+  const kycDocs = localDocs.filter(d => kycUserIds.has(d.user_id) && KYC_DOC_TYPES.includes(d.document_type));
+  const kybDocs = localDocs.filter(d => kybUserIds.has(d.user_id) && KYB_DOC_TYPES.includes(d.document_type));
 
-  function getKycProfile(uid: string): KycProfile | null {
-    return kycProfiles.find(p => p.user_id === uid) || null;
-  }
-
-  function getKybProfile(uid: string): KybProfile | null {
-    return kybProfiles.find(p => p.user_id === uid) || null;
-  }
-
-  function getTxn(txnId: string): Txn | null {
-    return transactions.find(t => t.id === txnId) || null;
-  }
-
-  function getDocStatus(doc: KycDoc) {
-    return doc.status || doc.verification_status || "pending";
-  }
+  function getDocStatus(doc: KycDoc) { return doc.status || doc.verification_status || "pending"; }
+  function getKycProfile(uid: string) { return kycProfiles.find(p => p.user_id === uid) || null; }
+  function getKybProfile(uid: string) { return kybProfiles.find(p => p.user_id === uid) || null; }
+  function getTxn(txnId: string) { return transactions.find(t => t.id === txnId) || null; }
 
   async function handleAction(docId: string, action: "approve" | "reject", isTxnDoc: boolean, reason?: string) {
-    const rejectionText = reason || rejectionReason[docId] || "";
-    if (action === "reject" && !rejectionText.trim()) {
-      alert("Please enter a rejection reason.");
-      return;
-    }
+    const rejectionText = reason || "";
+    if (action === "reject" && !rejectionText.trim()) { alert("Please enter a rejection reason."); return; }
     setProcessingId(docId);
-    const endpoint = isTxnDoc
-      ? "/api/admin/review-transaction-document"
-      : "/api/admin/review-document";
+    const endpoint = isTxnDoc ? "/api/admin/review-transaction-document" : "/api/admin/review-document";
     try {
       const res = await fetch(endpoint, {
         method: "POST",
@@ -257,270 +340,64 @@ export default function AdminDocumentsClient({
       });
       if (res.ok) {
         if (isTxnDoc) {
-          setLocalTxnDocs(prev => prev.map(d => d.id === docId
-            ? { ...d, status: action === "approve" ? "approved" : "rejected", rejection_reason: rejectionText }
-            : d
-          ));
+          setLocalTxnDocs(prev => prev.map(d => d.id === docId ? { ...d, status: action === "approve" ? "approved" : "rejected", rejection_reason: rejectionText } : d));
         } else {
-          setLocalDocs(prev => prev.map(d => d.id === docId
-            ? { ...d, status: action === "approve" ? "approved" : "rejected", verification_status: action === "approve" ? "approved" : "rejected", rejection_reason: rejectionText }
-            : d
-          ));
+          setLocalDocs(prev => prev.map(d => d.id === docId ? { ...d, status: action === "approve" ? "approved" : "rejected", verification_status: action === "approve" ? "approved" : "rejected", rejection_reason: rejectionText } : d));
         }
         setShowRejectInput(prev => ({ ...prev, [docId]: false }));
-        setRejectionReason(prev => ({ ...prev, [docId]: "" }));
       }
-    } finally {
-      setProcessingId(null);
-    }
-  }
-  const handleReasonChange = (docId: string, value: string) => {
-    setRejectionReason(prev => ({ ...prev, [docId]: value }));
-  };
-
-  const handleReasonChange = (docId: string, value: string) => {
-  setRejectionReason(prev => {
-    const next = { ...prev };
-    next[docId] = value;
-    return next;
-  });
-};
-
-  const kycPending = kycDocs.filter(d => getDocStatus(d) === "pending").length;
-  const kybPending = kybDocs.filter(d => getDocStatus(d) === "pending").length;
-  const txnPending = localTxnDocs.filter(d => d.status === "pending").length;
-
-  function applyFilter(docs: KycDoc[]) {
-    return docs.filter(d => filter === "all" ? true : getDocStatus(d) === filter);
+    } finally { setProcessingId(null); }
   }
 
-  function applyTxnFilter(docs: TxnDoc[]) {
-    return docs.filter(d => filter === "all" ? true : d.status === filter);
-  }
+  function handleToggleReject(docId: string) { setShowRejectInput(prev => ({ ...prev, [docId]: !prev[docId] })); }
 
   function groupByUser(docs: KycDoc[]) {
-    return docs.reduce((acc, doc) => {
-      if (!acc[doc.user_id]) acc[doc.user_id] = [];
-      acc[doc.user_id].push(doc);
-      return acc;
-    }, {} as Record<string, KycDoc[]>);
+    return docs.reduce((acc, doc) => { if (!acc[doc.user_id]) acc[doc.user_id] = []; acc[doc.user_id].push(doc); return acc; }, {} as Record<string, KycDoc[]>);
   }
 
   function groupByTxn(docs: TxnDoc[]) {
-    return docs.reduce((acc, doc) => {
-      if (!acc[doc.transaction_id]) acc[doc.transaction_id] = [];
-      acc[doc.transaction_id].push(doc);
-      return acc;
-    }, {} as Record<string, TxnDoc[]>);
+    return docs.reduce((acc, doc) => { if (!acc[doc.transaction_id]) acc[doc.transaction_id] = []; acc[doc.transaction_id].push(doc); return acc; }, {} as Record<string, TxnDoc[]>);
   }
 
-  function KycProfilePanel({ uid }: { uid: string }) {
-    const p = getKycProfile(uid);
-    if (!p) return null;
-    return (
-      <div className="mb-4 rounded-xl border border-white/10 bg-slate-900/50 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="rounded-full bg-blue-500/20 border border-blue-500/30 px-2 py-0.5 text-xs font-medium text-blue-400">
-            Personal KYC
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-          <div>
-            <p className="text-xs text-slate-500">Full Name</p>
-            <p className="text-sm font-medium text-white">{p.first_name} {p.last_name}</p>
-          </div>
-          {p.nationality && (
-            <div>
-              <p className="text-xs text-slate-500">Nationality</p>
-              <p className="text-sm text-white">{p.nationality}</p>
-            </div>
-          )}
-          {p.address && (
-            <div className="col-span-2">
-              <p className="text-xs text-slate-500">Residential Address</p>
-              <p className="text-sm text-white">{p.address}</p>
-            </div>
-          )}
-          {p.id_type && (
-            <div>
-              <p className="text-xs text-slate-500">ID Type</p>
-              <p className="text-sm text-white">{p.id_type}</p>
-            </div>
-          )}
-          {p.id_number && (
-            <div>
-              <p className="text-xs text-slate-500">ID Number</p>
-              <p className="text-sm text-white font-mono">{p.id_number}</p>
-            </div>
-          )}
-          {p.phone && (
-            <div>
-              <p className="text-xs text-slate-500">Phone</p>
-              <p className="text-sm text-white">{p.phone}</p>
-            </div>
-          )}
-          {p.email && (
-            <div>
-              <p className="text-xs text-slate-500">Email</p>
-              <p className="text-sm text-white">{p.email}</p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
+  function applyFilter(docs: KycDoc[]) { return docs.filter(d => filter === "all" ? true : getDocStatus(d) === filter); }
+  function applyTxnFilter(docs: TxnDoc[]) { return docs.filter(d => filter === "all" ? true : d.status === filter); }
 
-  function KybProfilePanel({ uid }: { uid: string }) {
-    const p = getKybProfile(uid);
-    if (!p) return null;
-    return (
-      <div className="mb-4 rounded-xl border border-white/10 bg-slate-900/50 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="rounded-full bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 text-xs font-medium text-purple-400">
-            Business KYB
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-          <div className="col-span-2">
-            <p className="text-xs text-slate-500">Company Name</p>
-            <p className="text-sm font-bold text-white">{p.company_name}</p>
-          </div>
-          {p.cac_number && (
-            <div>
-              <p className="text-xs text-slate-500">CAC Number</p>
-              <p className="text-sm text-white font-mono">{p.cac_number}</p>
-            </div>
-          )}
-          {p.tin && (
-            <div>
-              <p className="text-xs text-slate-500">TIN</p>
-              <p className="text-sm text-white font-mono">{p.tin}</p>
-            </div>
-          )}
-          {p.business_type && (
-            <div>
-              <p className="text-xs text-slate-500">Business Type</p>
-              <p className="text-sm text-white">{p.business_type}</p>
-            </div>
-          )}
-          {p.registered_address && (
-            <div className="col-span-2">
-              <p className="text-xs text-slate-500">Registered Address</p>
-              <p className="text-sm text-white">{p.registered_address}</p>
-            </div>
-          )}
-          {p.representative_name && (
-            <div>
-              <p className="text-xs text-slate-500">Director / Representative</p>
-              <p className="text-sm font-medium text-white">{p.representative_title} {p.representative_name}</p>
-            </div>
-          )}
-          {p.representative_email && (
-            <div>
-              <p className="text-xs text-slate-500">Representative Email</p>
-              <p className="text-sm text-white">{p.representative_email}</p>
-            </div>
-          )}
-          {p.representative_phone && (
-            <div>
-              <p className="text-xs text-slate-500">Representative Phone</p>
-              <p className="text-sm text-white">{p.representative_phone}</p>
-            </div>
-          )}
-          {p.company_email && (
-            <div>
-              <p className="text-xs text-slate-500">Company Email</p>
-              <p className="text-sm text-white">{p.company_email}</p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
+  // Counters
+  const kycPending = kycDocs.filter(d => getDocStatus(d) === "pending").length;
+  const kycApproved = kycDocs.filter(d => getDocStatus(d) === "approved").length;
+  const kycRejected = kycDocs.filter(d => getDocStatus(d) === "rejected").length;
 
-  function DocGroup({ docs, label, isKyb }: { docs: KycDoc[]; label: string; isKyb: boolean }) {
-    const grouped = groupByUser(applyFilter(docs));
-    if (Object.keys(grouped).length === 0) {
-      return (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-12 text-center">
-          <p className="text-slate-400">No {filter === "all" ? "" : filter} {label} documents found.</p>
-        </div>
-      );
-    }
-    return (
-      <div className="flex flex-col gap-6">
-        {Object.entries(grouped).map(([uid, userDocs]) => (
-          <div key={uid} className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-            <div className="border-b border-white/10 bg-white/5 px-6 py-4 flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-white">
-                  {isKyb
-                    ? (getKybProfile(uid)?.company_name || "Unknown Company")
-                    : ((getKycProfile(uid)?.first_name || "") + " " + (getKycProfile(uid)?.last_name || "")).trim() || "Unknown Customer"
-                  }
-                </p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {label} • {userDocs.length} document{userDocs.length > 1 ? "s" : ""}
-                </p>
-              </div>
-              <span className={"text-xs font-medium border rounded-full px-3 py-1 " +
-                (isKyb ? "text-purple-400 border-purple-500/30 bg-purple-500/10" : "text-blue-400 border-blue-500/30 bg-blue-500/10")}>
-                {label}
-              </span>
-            </div>
-            <div className="px-6 pt-5">
-              {isKyb ? <KybProfilePanel uid={uid} /> : <KycProfilePanel uid={uid} />}
-            </div>
-            <div className="divide-y divide-white/5">
-              {userDocs.map(doc => (
-                <div key={doc.id} className="px-6 py-5">
-                  <div className="flex items-start justify-between gap-4 mb-3">
-                    <div>
-                      <p className="font-medium text-white">
-                        {DOC_LABELS[doc.document_type] || doc.document_type.replace(/_/g, " ")}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Uploaded {new Date(doc.uploaded_at).toLocaleDateString("en-GB")}
-                        {doc.version && doc.version > 1 ? " • Version " + doc.version : ""}
-                        {doc.file_name ? " • " + doc.file_name : ""}
-                      </p>
-                    </div>
-                    <span className={"text-xs font-medium border rounded-full px-3 py-1 flex-shrink-0 " + (sc[getDocStatus(doc)] || sc.pending)}>
-                      {getDocStatus(doc)}
-                    </span>
-                  </div>
-                  {getDocStatus(doc) === "rejected" && doc.rejection_reason && (
-                    <div className="mb-3 rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-2">
-                      <p className="text-xs text-red-300">Rejection reason: {doc.rejection_reason}</p>
-                    </div>
-                  )}
-                  {doc.file_url && (
-                    <div className="mb-3">
-                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                        className="text-xs text-amber-400 hover:text-amber-300 underline">
-                        View document →
-                      </a>
-                    </div>
-                  )}
-                  <ActionButtons
-                    docId={doc.id}
-                    status={getDocStatus(doc)}
-                    isTxnDoc={false}
-                    processingId={processingId}
-                    
-                    showRejectInput={showRejectInp
-                    onReasonChange={handleReasonChange}
-                    onToggleReject={handleToggleReject}
-                    onAction={handleAction}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
+  const kybPending = kybDocs.filter(d => getDocStatus(d) === "pending").length;
+  const kybApproved = kybDocs.filter(d => getDocStatus(d) === "approved").length;
+  const kybRejected = kybDocs.filter(d => getDocStatus(d) === "rejected").length;
+
+  const txnPending = localTxnDocs.filter(d => d.status === "pending").length;
+  const txnApproved = localTxnDocs.filter(d => d.status === "approved").length;
+  const txnRejected = localTxnDocs.filter(d => d.status === "rejected").length;
+
+  const totalPending = kycPending + kybPending + txnPending;
+
+  // Tab-specific counters for the stats bar
+  const activeCounters = activeTab === "kyc"
+    ? [
+        { label: "Pending", value: kycPending, color: "text-amber-400" },
+        { label: "Approved", value: kycApproved, color: "text-emerald-400" },
+        { label: "Rejected", value: kycRejected, color: "text-red-400" },
+        { label: "Total", value: kycDocs.length, color: "text-white" },
+      ]
+    : activeTab === "kyb"
+    ? [
+        { label: "Pending", value: kybPending, color: "text-amber-400" },
+        { label: "Approved", value: kybApproved, color: "text-emerald-400" },
+        { label: "Rejected", value: kybRejected, color: "text-red-400" },
+        { label: "Total", value: kybDocs.length, color: "text-white" },
+      ]
+    : [
+        { label: "Pending", value: txnPending, color: "text-amber-400" },
+        { label: "Approved", value: txnApproved, color: "text-emerald-400" },
+        { label: "Rejected", value: txnRejected, color: "text-red-400" },
+        { label: "Total", value: localTxnDocs.length, color: "text-white" },
+      ];
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -532,9 +409,9 @@ export default function AdminDocumentsClient({
         </div>
         <div className="flex items-center gap-3">
           <Link href="/admin/transactions" className="text-sm text-slate-400 hover:text-white transition">Transactions</Link>
-          {kycPending + kybPending + txnPending > 0 && (
+          {totalPending > 0 && (
             <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-400">
-              {kycPending + kybPending + txnPending} pending
+              {totalPending} pending
             </span>
           )}
           <span className="text-xl font-black">KY<span className="text-amber-400">A</span></span>
@@ -545,20 +422,7 @@ export default function AdminDocumentsClient({
         <h1 className="text-3xl font-black mb-2">Document Review</h1>
         <p className="text-slate-400 mb-8">Review and approve or reject customer verification and trade documents.</p>
 
-        <div className="mb-8 grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: "KYC Pending", value: kycPending, color: "text-blue-400" },
-            { label: "KYB Pending", value: kybPending, color: "text-purple-400" },
-            { label: "Trade Pending", value: txnPending, color: "text-amber-400" },
-            { label: "Total Pending", value: kycPending + kybPending + txnPending, color: "text-red-400" },
-          ].map(s => (
-            <div key={s.label} className="rounded-xl border border-white/10 bg-white/5 p-4 text-center">
-              <p className={"text-2xl font-black " + s.color}>{s.value}</p>
-              <p className="text-xs text-slate-500 mt-1">{s.label}</p>
-            </div>
-          ))}
-        </div>
-
+        {/* Tab buttons */}
         <div className="flex gap-2 mb-6 flex-wrap">
           {[
             { key: "kyc" as const, label: "Personal KYC", count: kycPending, color: "bg-blue-500 text-white" },
@@ -573,6 +437,17 @@ export default function AdminDocumentsClient({
           ))}
         </div>
 
+        {/* Tab-specific counters */}
+        <div className="mb-6 grid grid-cols-4 gap-4">
+          {activeCounters.map(s => (
+            <div key={s.label} className="rounded-xl border border-white/10 bg-white/5 p-4 text-center">
+              <p className={"text-2xl font-black " + s.color}>{s.value}</p>
+              <p className="text-xs text-slate-500 mt-1">{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Filter buttons */}
         <div className="flex gap-2 mb-6 flex-wrap">
           {(["pending", "approved", "rejected", "all"] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)}
@@ -583,20 +458,75 @@ export default function AdminDocumentsClient({
           ))}
         </div>
 
-        {activeTab === "kyc" && <DocGroup docs={kycDocs} label="Personal KYC" isKyb={false} />}
-        {activeTab === "kyb" && <DocGroup docs={kybDocs} label="Business KYB" isKyb={true} />}
+        {/* KYC tab */}
+        {activeTab === "kyc" && (
+          <div className="flex flex-col gap-6">
+            {Object.keys(groupByUser(applyFilter(kycDocs))).length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-12 text-center">
+                <p className="text-slate-400">No {filter === "all" ? "" : filter} Personal KYC documents found.</p>
+              </div>
+            ) : Object.entries(groupByUser(applyFilter(kycDocs))).map(([uid, userDocs]) => (
+              <div key={uid} className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+                <div className="border-b border-white/10 bg-white/5 px-6 py-4 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-white">
+                      {((getKycProfile(uid)?.first_name || "") + " " + (getKycProfile(uid)?.last_name || "")).trim() || "Unknown Customer"}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">Personal KYC • {userDocs.length} document{userDocs.length > 1 ? "s" : ""}</p>
+                  </div>
+                  <span className="text-xs font-medium border rounded-full px-3 py-1 text-blue-400 border-blue-500/30 bg-blue-500/10">Personal KYC</span>
+                </div>
+                <div className="px-6 pt-5">
+                  <KycProfilePanel profile={getKycProfile(uid)} />
+                </div>
+                <div className="divide-y divide-white/5">
+                  {userDocs.map(doc => (
+                    <DocCard key={doc.id} doc={doc} processingId={processingId} showRejectInput={showRejectInput} onToggleReject={handleToggleReject} onAction={handleAction} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
+        {/* KYB tab */}
+        {activeTab === "kyb" && (
+          <div className="flex flex-col gap-6">
+            {Object.keys(groupByUser(applyFilter(kybDocs))).length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-12 text-center">
+                <p className="text-slate-400">No {filter === "all" ? "" : filter} Business KYB documents found.</p>
+              </div>
+            ) : Object.entries(groupByUser(applyFilter(kybDocs))).map(([uid, userDocs]) => (
+              <div key={uid} className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+                <div className="border-b border-white/10 bg-white/5 px-6 py-4 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-white">{getKybProfile(uid)?.company_name || "Unknown Company"}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Business KYB • {userDocs.length} document{userDocs.length > 1 ? "s" : ""}</p>
+                  </div>
+                  <span className="text-xs font-medium border rounded-full px-3 py-1 text-purple-400 border-purple-500/30 bg-purple-500/10">Business KYB</span>
+                </div>
+                <div className="px-6 pt-5">
+                  <KybProfilePanel profile={getKybProfile(uid)} />
+                </div>
+                <div className="divide-y divide-white/5">
+                  {userDocs.map(doc => (
+                    <DocCard key={doc.id} doc={doc} processingId={processingId} showRejectInput={showRejectInput} onToggleReject={handleToggleReject} onAction={handleAction} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Trade Documents tab */}
         {activeTab === "trade" && (
           <div className="flex flex-col gap-6">
-            {Object.keys(groupByTxn(applyTxnFilter(localTxnDocs))).length === 0 && (
+            {Object.keys(groupByTxn(applyTxnFilter(localTxnDocs))).length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-white/5 p-12 text-center">
-                <p className="text-slate-400">No {filter === "all" ? "" : filter} trade documents.</p>
+                <p className="text-slate-400">No {filter === "all" ? "" : filter} trade documents found.</p>
               </div>
-            )}
-            {Object.entries(groupByTxn(applyTxnFilter(localTxnDocs))).map(([txnId, txnDocs]) => {
+            ) : Object.entries(groupByTxn(applyTxnFilter(localTxnDocs))).map(([txnId, txnDocs]) => {
               const txn = getTxn(txnId);
-              const txnRef = txn?.transaction_ref || txnId.slice(0, 8);
-              const supplierName = txn?.supplier_name || "Unknown Supplier";
               const firstDoc = txnDocs[0];
               const customerKyc = getKycProfile(firstDoc.user_id);
               const customerKyb = getKybProfile(firstDoc.user_id);
@@ -610,7 +540,7 @@ export default function AdminDocumentsClient({
                     <div className="flex items-start justify-between gap-4 mb-3">
                       <div>
                         <p className="text-xs text-slate-500 mb-0.5">Supplier</p>
-                        <p className="font-bold text-white text-lg">{supplierName}</p>
+                        <p className="font-bold text-white text-lg">{txn?.supplier_name || "Unknown Supplier"}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-xs text-slate-500 mb-0.5">Customer</p>
@@ -620,7 +550,7 @@ export default function AdminDocumentsClient({
                     <div className="flex flex-wrap gap-4">
                       <div>
                         <p className="text-xs text-slate-500">KYA Reference</p>
-                        <p className="text-sm font-mono text-white">{txnRef}</p>
+                        <p className="text-sm font-mono text-white">{txn?.transaction_ref || txnId.slice(0, 8)}</p>
                       </div>
                       {txn?.form_m_number && (
                         <div>
@@ -644,47 +574,7 @@ export default function AdminDocumentsClient({
                   </div>
                   <div className="divide-y divide-white/5">
                     {txnDocs.map(doc => (
-                      <div key={doc.id} className="px-6 py-5">
-                        <div className="flex items-start justify-between gap-4 mb-3">
-                          <div>
-                            <p className="font-medium text-white">
-                              {DOC_LABELS[doc.document_type] || doc.document_type.replace(/_/g, " ")}
-                            </p>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                              Uploaded {new Date(doc.uploaded_at).toLocaleDateString("en-GB")}
-                              {doc.version && doc.version > 1 ? " • Version " + doc.version : ""}
-                              {doc.file_name ? " • " + doc.file_name : ""}
-                            </p>
-                          </div>
-                          <span className={"text-xs font-medium border rounded-full px-3 py-1 flex-shrink-0 " + (sc[doc.status] || sc.pending)}>
-                            {doc.status}
-                          </span>
-                        </div>
-                        {doc.status === "rejected" && doc.rejection_reason && (
-                          <div className="mb-3 rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-2">
-                            <p className="text-xs text-red-300">Rejection reason: {doc.rejection_reason}</p>
-                          </div>
-                        )}
-                        {doc.file_url && (
-                          <div className="mb-3">
-                            <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                              className="text-xs text-amber-400 hover:text-amber-300 underline">
-                              View document →
-                            </a>
-                          </div>
-                        )}
-                        <ActionButtons
-                          docId={doc.id}
-                          status={doc.status}
-                          isTxnDoc={true}
-                          processingId={processingId}
-                      
-                          showRejectInput={showRejectInput}
-                          onReasonChange={handleReasonChange}
-                          onToggleReject={handleToggleReject}
-                          onAction={handleAction}
-                        />
-                      </div>
+                      <TxnDocCard key={doc.id} doc={doc} processingId={processingId} showRejectInput={showRejectInput} onToggleReject={handleToggleReject} onAction={handleAction} />
                     ))}
                   </div>
                 </div>
