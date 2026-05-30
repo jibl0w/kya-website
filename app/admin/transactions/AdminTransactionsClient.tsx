@@ -60,6 +60,7 @@ interface KybProfile {
   company_name: string;
   cac_number?: string;
   registered_address?: string;
+  company_email?: string;
   representative_title?: string;
   representative_name?: string;
   representative_phone?: string;
