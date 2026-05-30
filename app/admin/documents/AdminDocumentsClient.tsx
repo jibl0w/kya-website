@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 "use client";
 
 import { useState } from "react";
@@ -108,19 +109,43 @@ interface ActionButtonsProps {
   status: string;
   isTxnDoc: boolean;
   processingId: string | null;
-  rejectionReason: Record<string, string>;
   showRejectInput: Record<string, boolean>;
-  onReasonChange: (docId: string, value: string) => void;
   onToggleReject: (docId: string) => void;
-  onAction: (docId: string, action: "approve" | "reject", isTxnDoc: boolean) => void;
+  onAction: (docId: string, action: "approve" | "reject", isTxnDoc: boolean, reason?: string) => void;
 }
 
 function ActionButtons({
   docId, status, isTxnDoc,
-  processingId, rejectionReason, showRejectInput,
-  onReasonChange, onToggleReject, onAction
-}: ActionButtonsProps) {
+  processingId, showRejectInput,
+  onToggleReject, onAction
+}: Omit<ActionButtonsProps, "rejectionReason" | "onReasonChange"> & { onAction: (docId: string, action: "approve" | "reject", isTxnDoc: boolean, reason?: string) => void }) {
   const isProcessing = processingId === docId;
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  function handleConfirmReject() {
+    const reason = inputRef.current?.value || "";
+    if (!reason.trim()) {
+      alert("Please enter a rejection reason.");
+      return;
+    }
+    onAction(docId, "reject", isTxnDoc, reason);
+  }
+
+  const rejectInput = showRejectInput[docId] && (
+    <div className="flex gap-3 items-start mt-1">
+      <input
+        ref={inputRef}
+        type="text"
+        defaultValue=""
+        placeholder="Enter rejection reason (required)"
+        className="flex-1 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-red-400/50"
+      />
+      <button onClick={handleConfirmReject} disabled={isProcessing}
+        className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-400 transition disabled:opacity-50 flex-shrink-0">
+        {isProcessing ? "..." : "Confirm"}
+      </button>
+    </div>
+  );
 
   if (status === "approved") {
     return (
@@ -132,21 +157,7 @@ function ActionButtons({
             Reject
           </button>
         </div>
-        {showRejectInput[docId] && (
-          <div className="flex gap-3 items-start mt-1">
-            <input
-              type="text"
-              value={rejectionReason[docId] || ""}
-              onChange={e => onReasonChange(docId, e.target.value)}
-              placeholder="Enter rejection reason (required)"
-              className="flex-1 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-red-400/50"
-            />
-            <button onClick={() => onAction(docId, "reject", isTxnDoc)} disabled={isProcessing}
-              className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-400 transition disabled:opacity-50 flex-shrink-0">
-              {isProcessing ? "..." : "Confirm"}
-            </button>
-          </div>
-        )}
+        {rejectInput}
       </div>
     );
   }
@@ -165,21 +176,7 @@ function ActionButtons({
             New Reason
           </button>
         </div>
-        {showRejectInput[docId] && (
-          <div className="flex gap-3 items-start mt-1">
-            <input
-              type="text"
-              value={rejectionReason[docId] || ""}
-              onChange={e => onReasonChange(docId, e.target.value)}
-              placeholder="Enter new rejection reason (required)"
-              className="flex-1 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-red-400/50"
-            />
-            <button onClick={() => onAction(docId, "reject", isTxnDoc)} disabled={isProcessing}
-              className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-400 transition disabled:opacity-50 flex-shrink-0">
-              {isProcessing ? "..." : "Confirm"}
-            </button>
-          </div>
-        )}
+        {rejectInput}
       </div>
     );
   }
@@ -196,21 +193,7 @@ function ActionButtons({
           ✕ Reject
         </button>
       </div>
-      {showRejectInput[docId] && (
-        <div className="flex gap-3 items-start">
-          <input
-            type="text"
-            value={rejectionReason[docId] || ""}
-            onChange={e => onReasonChange(docId, e.target.value)}
-            placeholder="Enter rejection reason (required)"
-            className="flex-1 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-red-400/50"
-          />
-          <button onClick={() => onAction(docId, "reject", isTxnDoc)} disabled={isProcessing}
-            className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-400 transition disabled:opacity-50 flex-shrink-0">
-            {isProcessing ? "..." : "Confirm"}
-          </button>
-        </div>
-      )}
+      {rejectInput}
     </div>
   );
 }
@@ -256,9 +239,9 @@ export default function AdminDocumentsClient({
     return doc.status || doc.verification_status || "pending";
   }
 
-  async function handleAction(docId: string, action: "approve" | "reject", isTxnDoc: boolean) {
-    const reason = rejectionReason[docId] || "";
-    if (action === "reject" && !reason.trim()) {
+  async function handleAction(docId: string, action: "approve" | "reject", isTxnDoc: boolean, reason?: string) {
+    const rejectionText = reason || rejectionReason[docId] || "";
+    if (action === "reject" && !rejectionText.trim()) {
       alert("Please enter a rejection reason.");
       return;
     }
@@ -270,17 +253,17 @@ export default function AdminDocumentsClient({
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: docId, action, rejectionReason: reason }),
+        body: JSON.stringify({ documentId: docId, action, rejectionReason: rejectionText }),
       });
       if (res.ok) {
         if (isTxnDoc) {
           setLocalTxnDocs(prev => prev.map(d => d.id === docId
-            ? { ...d, status: action === "approve" ? "approved" : "rejected", rejection_reason: reason }
+            ? { ...d, status: action === "approve" ? "approved" : "rejected", rejection_reason: rejectionText }
             : d
           ));
         } else {
           setLocalDocs(prev => prev.map(d => d.id === docId
-            ? { ...d, status: action === "approve" ? "approved" : "rejected", verification_status: action === "approve" ? "approved" : "rejected", rejection_reason: reason }
+            ? { ...d, status: action === "approve" ? "approved" : "rejected", verification_status: action === "approve" ? "approved" : "rejected", rejection_reason: rejectionText }
             : d
           ));
         }
@@ -291,14 +274,17 @@ export default function AdminDocumentsClient({
       setProcessingId(null);
     }
   }
-
   const handleReasonChange = (docId: string, value: string) => {
     setRejectionReason(prev => ({ ...prev, [docId]: value }));
   };
 
-  const handleToggleReject = (docId: string) => {
-    setShowRejectInput(prev => ({ ...prev, [docId]: !prev[docId] }));
-  };
+  const handleReasonChange = (docId: string, value: string) => {
+  setRejectionReason(prev => {
+    const next = { ...prev };
+    next[docId] = value;
+    return next;
+  });
+};
 
   const kycPending = kycDocs.filter(d => getDocStatus(d) === "pending").length;
   const kybPending = kybDocs.filter(d => getDocStatus(d) === "pending").length;
@@ -521,8 +507,8 @@ export default function AdminDocumentsClient({
                     status={getDocStatus(doc)}
                     isTxnDoc={false}
                     processingId={processingId}
-                    rejectionReason={rejectionReason}
-                    showRejectInput={showRejectInput}
+                    
+                    showRejectInput={showRejectInp
                     onReasonChange={handleReasonChange}
                     onToggleReject={handleToggleReject}
                     onAction={handleAction}
@@ -692,7 +678,7 @@ export default function AdminDocumentsClient({
                           status={doc.status}
                           isTxnDoc={true}
                           processingId={processingId}
-                          rejectionReason={rejectionReason}
+                      
                           showRejectInput={showRejectInput}
                           onReasonChange={handleReasonChange}
                           onToggleReject={handleToggleReject}
