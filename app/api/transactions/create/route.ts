@@ -11,6 +11,24 @@ function generateRef(): string {
   return `KYA-${year}${month}-${random}`;
 }
 
+const STEP_NAMES = [
+  "Customer Onboarding",
+  "Supplier Selection",
+  "Trade Setup",
+  "Form M Submission",
+  "Funding Instruction",
+  "LC Issuance",
+  "Pre-Shipment Inspection",
+  "Shipment",
+  "Document Validation",
+  "FX Processing",
+  "USD Credit",
+  "Payment Instruction",
+  "Payment Execution",
+  "LC Liquidation",
+  "Transaction Completion",
+];
+
 export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
@@ -56,23 +74,7 @@ export async function POST(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const stepNames = [
-    "KYC / KYB Verification",
-    "Supplier Selection",
-    "Form M Submission",
-    "Naira Funding",
-    "LC Issuance",
-    "Pre-Shipment Inspection",
-    "Shipment & Documents",
-    "FX Processing & Release",
-    "USD Credit to Account",
-    "Payment Instruction",
-    "RMB Settlement",
-    "LC Liquidation",
-    "Transaction Complete",
-  ];
-
-  const steps = stepNames.map((name, i) => ({
+  const steps = STEP_NAMES.map((name, i) => ({
     transaction_id: transaction.id,
     step_number: i + 1,
     step_name: name,
@@ -81,7 +83,6 @@ export async function POST(req: Request) {
 
   await supabaseServer.from("transaction_steps").insert(steps);
 
-  // Send notification to admin
   try {
     const clerkRes = await fetch(
       "https://api.clerk.com/v1/users/" + userId,

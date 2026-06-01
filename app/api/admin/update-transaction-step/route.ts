@@ -6,19 +6,21 @@ import { notifyCustomerStepAdvanced } from "@/lib/notifications";
 const ADMIN_IDS = process.env.ADMIN_USER_IDS?.split(",") || [];
 
 const STEP_NAMES = [
-  "KYC / KYB Verification",
+  "Customer Onboarding",
   "Supplier Selection",
+  "Trade Setup",
   "Form M Submission",
-  "Naira Funding",
+  "Funding Instruction",
   "LC Issuance",
   "Pre-Shipment Inspection",
-  "Shipment & Documents",
-  "FX Processing & Release",
-  "USD Credit to Account",
+  "Shipment",
+  "Document Validation",
+  "FX Processing",
+  "USD Credit",
   "Payment Instruction",
-  "RMB Settlement",
+  "Payment Execution",
   "LC Liquidation",
-  "Transaction Complete",
+  "Transaction Completion",
 ];
 
 export async function POST(req: Request) {
@@ -27,20 +29,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
 
-  const { transactionId, currentStep, nextStep, note, formMNumber, lcNumber, revert } = await req.json();
+  const { transactionId, currentStep, nextStep, note, formMNumber, lcNumber, adReference, revert } = await req.json();
 
   if (!transactionId || !currentStep || !nextStep) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
 
-  const txnUpdate: any = {
+  const txnUpdate: Record<string, unknown> = {
     current_step: nextStep,
-    status: nextStep === 13 ? "complete" : "active",
+    status: nextStep === 15 ? "complete" : "active",
     updated_at: new Date().toISOString(),
   };
 
   if (formMNumber) txnUpdate.form_m_number = formMNumber;
   if (lcNumber) txnUpdate.lc_number = lcNumber;
+  if (adReference) txnUpdate.ad_reference = adReference;
 
   const { error: txnError } = await supabaseServer
     .from("transactions")
@@ -79,7 +82,6 @@ export async function POST(req: Request) {
     .eq("transaction_id", transactionId)
     .eq("step_number", nextStep);
 
-  // Send notification to customer
   if (!revert) {
     try {
       const { data: txn } = await supabaseServer
