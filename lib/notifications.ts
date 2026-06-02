@@ -3,30 +3,6 @@ import {
   notifyCustomerTransactionCreated,
 } from "@/lib/notifications";
 
-PS C:\Users\jiblo\Desktop\KYA-WEBSITE> cd C:\Users\jiblo\Desktop\KYA-WEBSITE
-PS C:\Users\jiblo\Desktop\KYA-WEBSITE> git add .
->> git commit -m "Add Terms of Service page and acceptance checkpoint"
->> git push
-[main 836be10] Add Terms of Service page and acceptance checkpoint
- 4 files changed, 331 insertions(+), 57 deletions(-)
- create mode 100644 app/components/TermsAcceptance.tsx
- create mode 100644 app/dashboard/onboarding/OnboardingWithTerms.tsx
- create mode 100644 app/terms/page.tsx
-Enumerating objects: 17, done.
-Counting objects: 100% (17/17), done.
-Delta compression using up to 8 threads
-Compressing objects: 100% (10/10), done.
-Writing objects: 100% (11/11), 7.04 KiB | 266.00 KiB/s, done.
-Total 11 (delta 4), reused 0 (delta 0), pack-reused 0 (from 0)
-remote: Resolving deltas: 100% (4/4), completed with 4 local objects.
-To https://github.com/jibl0w/kya-website.git
-   4088e47..836be10  main -> main
-PS C:\Users\jiblo\Desktop\KYA-WEBSITE> 
- *  History restored 
-
-PS C:\Users\jiblo\Desktop\KYA-WEBSITE> Get-Content lib/notifications.ts
-import { Resend } from "resend";
-
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
