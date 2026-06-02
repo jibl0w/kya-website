@@ -1,3 +1,30 @@
+import {
+  notifyAdminTransactionCreated,
+  notifyCustomerTransactionCreated,
+} from "@/lib/notifications";
+
+PS C:\Users\jiblo\Desktop\KYA-WEBSITE> cd C:\Users\jiblo\Desktop\KYA-WEBSITE
+PS C:\Users\jiblo\Desktop\KYA-WEBSITE> git add .
+>> git commit -m "Add Terms of Service page and acceptance checkpoint"
+>> git push
+[main 836be10] Add Terms of Service page and acceptance checkpoint
+ 4 files changed, 331 insertions(+), 57 deletions(-)
+ create mode 100644 app/components/TermsAcceptance.tsx
+ create mode 100644 app/dashboard/onboarding/OnboardingWithTerms.tsx
+ create mode 100644 app/terms/page.tsx
+Enumerating objects: 17, done.
+Counting objects: 100% (17/17), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (10/10), done.
+Writing objects: 100% (11/11), 7.04 KiB | 266.00 KiB/s, done.
+Total 11 (delta 4), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (4/4), completed with 4 local objects.
+To https://github.com/jibl0w/kya-website.git
+   4088e47..836be10  main -> main
+PS C:\Users\jiblo\Desktop\KYA-WEBSITE> 
+ *  History restored 
+
+PS C:\Users\jiblo\Desktop\KYA-WEBSITE> Get-Content lib/notifications.ts
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -12,7 +39,7 @@ export async function notifyAdminDocumentUploaded(params: {
   await resend.emails.send({
     from: FROM,
     to: ADMIN_EMAIL,
-    subject: "KYA — New Document Uploaded",
+    subject: "KYA â€” New Document Uploaded",
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #f59e0b;">KYA Digital Services</h2>
@@ -48,7 +75,7 @@ export async function notifyCustomerDocumentApproved(params: {
   await resend.emails.send({
     from: FROM,
     to: params.customerEmail,
-    subject: "KYA — Document Approved",
+    subject: "KYA â€” Document Approved",
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #f59e0b;">KYA Digital Services</h2>
@@ -79,7 +106,7 @@ export async function notifyCustomerDocumentRejected(params: {
   await resend.emails.send({
     from: FROM,
     to: params.customerEmail,
-    subject: "KYA — Document Requires Attention",
+    subject: "KYA â€” Document Requires Attention",
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #f59e0b;">KYA Digital Services</h2>
@@ -112,12 +139,12 @@ export async function notifyCustomerAccountVerified(params: {
   await resend.emails.send({
     from: FROM,
     to: params.customerEmail,
-    subject: "KYA — Your Account is Verified",
+    subject: "KYA â€” Your Account is Verified",
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #f59e0b;">KYA Digital Services</h2>
         <p>Hi ${params.customerName},</p>
-        <p>Congratulations — your account has been <strong style="color: #10b981;">fully verified</strong>.</p>
+        <p>Congratulations â€” your account has been <strong style="color: #10b981;">fully verified</strong>.</p>
         <p>You can now initiate trade transactions through the KYA platform. Browse our verified supplier marketplace and start your first trade today.</p>
         <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard"
            style="background: #f59e0b; color: #000; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
@@ -125,8 +152,8 @@ export async function notifyCustomerAccountVerified(params: {
         </a>
         <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;" />
         <p style="color: #6b7280; font-size: 12px;">
-          KYA Digital Services Ltd · CAC Registered · Nigeria<br/>
-          Not a PSP · Not a Bank · Trade Infrastructure Platform
+          KYA Digital Services Ltd Â· CAC Registered Â· Nigeria<br/>
+          Not a PSP Â· Not a Bank Â· Trade Infrastructure Platform
         </p>
       </div>
     `,
@@ -143,7 +170,7 @@ export async function notifyAdminTransactionCreated(params: {
   await resend.emails.send({
     from: FROM,
     to: ADMIN_EMAIL,
-    subject: "KYA — New Transaction Created",
+    subject: "KYA â€” New Transaction Created",
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #f59e0b;">KYA Digital Services</h2>
@@ -186,7 +213,7 @@ export async function notifyCustomerStepAdvanced(params: {
   await resend.emails.send({
     from: FROM,
     to: params.customerEmail,
-    subject: "KYA — Transaction Update: " + params.transactionRef,
+    subject: "KYA â€” Transaction Update: " + params.transactionRef,
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #f59e0b;">KYA Digital Services</h2>
@@ -203,7 +230,7 @@ export async function notifyCustomerStepAdvanced(params: {
           </tr>
           <tr>
             <td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: bold;">Current Step</td>
-            <td style="padding: 8px; border: 1px solid #e5e7eb; color: #f59e0b;">Step ${params.stepNumber} — ${params.stepName}</td>
+            <td style="padding: 8px; border: 1px solid #e5e7eb; color: #f59e0b;">Step ${params.stepNumber} â€” ${params.stepName}</td>
           </tr>
         </table>
         <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard"
@@ -212,7 +239,7 @@ export async function notifyCustomerStepAdvanced(params: {
         </a>
         <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;" />
         <p style="color: #6b7280; font-size: 12px;">
-          KYA Digital Services Ltd · CAC Registered · Nigeria
+          KYA Digital Services Ltd Â· CAC Registered Â· Nigeria
         </p>
       </div>
     `,
