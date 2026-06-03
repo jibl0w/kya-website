@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useUser, useAuth } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
 
 type AccountType = "personal" | "business" | "unknown" | null;
 type DocStatus = "pending" | "approved" | "rejected" | "not_uploaded";
@@ -45,7 +44,6 @@ const statusConfig = {
 
 export default function DocumentsPage() {
   const { user, isLoaded } = useUser();
-  const { getToken } = useAuth();
   const [accountType, setAccountType] = useState<AccountType>(null);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [uploading, setUploading] = useState<string | null>(null);
@@ -104,55 +102,31 @@ export default function DocumentsPage() {
     try {
       const existingDoc = getDocumentRecord(docKey);
       const newVersion = (existingDoc?.version || 0) + 1;
-      const fileExt = file.name.split(".").pop();
-      const fileName = user.id + "/" + docKey + "_" + Date.now() + "." + fileExt;
 
-      // Upload directly from browser to Supabase storage
-      const clerkToken = await getToken({ template: "supabase" });
-      const supabaseDirect = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          global: {
-            headers: {
-              Authorization: `Bearer ${clerkToken}`,
-            },
-          },
-        }
-      );
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("docKey", docKey);
+      formData.append("accountType", accountType || "personal");
+      formData.append("version", String(newVersion));
+      if (existingDoc?.id) formData.append("existingDocId", existingDoc.id);
 
-      const { error: storageError } = await supabaseDirect.storage
-        .from("kya-documents")
-        .upload(fileName, file, { upsert: true });
-
-      if (storageError) throw new Error(storageError.message);
-
-      const { data: urlData } = supabaseDirect.storage
-        .from("kya-documents")
-        .getPublicUrl(fileName);
-
-      // Save document record through API route
       const res = await fetch("/api/save-document", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          docKey,
-          fileUrl: urlData.publicUrl,
-          fileName: file.name,
-          accountType,
-          existingDocId: existingDoc?.id || null,
-          version: newVersion,
-        }),
+        body: formData,
       });
 
-      if (!res.ok) throw new Error("Failed to save document record");
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Upload failed");
+      }
 
       await fetchDocuments();
       setUploadSuccess(docKey);
       setTimeout(() => setUploadSuccess(null), 3000);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Upload failed";
       console.error("Upload error:", err);
-      setErrorMessage(err.message || "Upload failed");
+      setErrorMessage(message);
       setUploadError(docKey);
       setTimeout(() => setUploadError(null), 5000);
     } finally {
@@ -182,7 +156,6 @@ export default function DocumentsPage() {
     return (
       <main className="min-h-screen bg-slate-950 text-white px-6 py-10">
         <div className="mx-auto max-w-2xl text-center py-20">
-          <div className="text-4xl mb-4">⚠️</div>
           <h1 className="text-2xl font-bold mb-4">Complete Onboarding First</h1>
           <p className="text-slate-400 mb-8">
             You need to complete KYC or KYB onboarding before uploading documents.
@@ -204,28 +177,29 @@ export default function DocumentsPage() {
             ← Dashboard
           </Link>
           <span className="text-white/20">/</span>
-          <span className="text-sm text-slate-400">Documents</span>
-        </div>
-        <span className="text-xl font-black">KY<span className="text-amber-400">A</span></span>
-      </header>
-
-      <div className="mx-auto max-w-4xl px-8 py-10">
-
-        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 mb-6">
-          <span>{accountType === "personal" ? "👤" : "🏢"}</span>
           <span className="text-sm font-medium">
             {accountType === "personal" ? "Personal KYC Documents" : "Business KYB Documents"}
           </span>
         </div>
+        <span className="text-xl font-black">KY<span className="text-amber-400">A</span></span>
+      </header>
 
-        <h1 className="text-3xl font-black mb-2">Upload Documents</h1>
-        <p className="text-slate-400 mb-8">
-          {accountType === "personal"
-            ? "Upload the required documents to verify your personal identity."
-            : "Upload the required documents to verify your business registration and ownership."}
-        </p>
+      <div className="mx-auto max-w-2xl px-8 py-10">
 
-        <div className="mb-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="mb-8">
+          <div className={"inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium mb-4 " +
+            (accountType === "personal" ? "border-blue-500/30 bg-blue-500/10 text-blue-400" : "border-purple-500/30 bg-purple-500/10 text-purple-400")}>
+            {accountType === "personal" ? "Personal KYC Documents" : "Business KYB Documents"}
+          </div>
+          <h1 className="text-3xl font-black mb-2">Upload Documents</h1>
+          <p className="text-slate-400 text-sm">
+            {accountType === "personal"
+              ? "Upload the required documents to verify your personal identity."
+              : "Upload the required documents to verify your business registration and ownership."}
+          </p>
+        </div>
+
+        <div className="mb-8 grid grid-cols-4 gap-4">
           {[
             { label: "Required", value: totalRequired, color: "text-white" },
             { label: "Uploaded", value: totalUploaded, color: "text-amber-400" },
@@ -242,9 +216,7 @@ export default function DocumentsPage() {
         {allApproved && (
           <div className="mb-8 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5">
             <p className="font-semibold text-emerald-400">✓ All documents approved</p>
-            <p className="text-sm text-slate-400 mt-1">
-              Your documents are verified. Your account is fully activated.
-            </p>
+            <p className="text-sm text-slate-400 mt-1">Your documents are verified. Your account is fully activated.</p>
           </div>
         )}
 
@@ -267,9 +239,7 @@ export default function DocumentsPage() {
                       <p className="text-xs text-slate-500 mt-0.5">{doc.hint}</p>
                     </div>
                   </div>
-                  <span className={"text-xs font-medium flex-shrink-0 " + config.color}>
-                    {config.label}
-                  </span>
+                  <span className={"text-xs font-medium flex-shrink-0 " + config.color}>{config.label}</span>
                 </div>
 
                 {status === "rejected" && record?.rejection_reason && (
