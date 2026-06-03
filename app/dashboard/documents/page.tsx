@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 
@@ -45,6 +45,8 @@ const statusConfig = {
 
 export default function DocumentsPage() {
   const { user, isLoaded } = useUser();
+  const { getToken } = useAuth();
+  const { getToken } = useAuth();
   const [accountType, setAccountType] = useState<AccountType>(null);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [uploading, setUploading] = useState<string | null>(null);
