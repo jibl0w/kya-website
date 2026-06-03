@@ -108,7 +108,7 @@ export default function DocumentsPage() {
       const fileName = user.id + "/" + docKey + "_" + Date.now() + "." + fileExt;
 
       // Upload directly from browser to Supabase storage
-      const clerkToken = await user.getToken({ template: "supabase" });
+      const clerkToken = await getToken({ template: "supabase" });
       const supabaseDirect = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
