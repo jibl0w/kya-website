@@ -46,7 +46,6 @@ const statusConfig = {
 export default function DocumentsPage() {
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
-  const { getToken } = useAuth();
   const [accountType, setAccountType] = useState<AccountType>(null);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [uploading, setUploading] = useState<string | null>(null);
