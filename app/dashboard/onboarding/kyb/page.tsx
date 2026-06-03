@@ -2,208 +2,169 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function KYBPage() {
-  const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
 
   async function handleSubmit() {
-    setMessage("Submitting...");
+    setSubmitting(true);
+    setError("");
+
+    const getValue = (id: string) =>
+      (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement)?.value || "";
 
     const response = await fetch("/api/kyb", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        secretary_title: (document.getElementById("secretary_title") as HTMLSelectElement).value,
-        company_name: (document.getElementById("company_name") as HTMLInputElement).value,
-        cac_number: (document.getElementById("cac_number") as HTMLInputElement).value,
-        tin: (document.getElementById("tin") as HTMLInputElement).value,
-        business_type: (document.getElementById("business_type") as HTMLSelectElement).value,
-        business_sector: (document.getElementById("business_sector") as HTMLInputElement).value,
-        registered_address: (document.getElementById("registered_address") as HTMLInputElement).value,
-        company_email: (document.getElementById("company_email") as HTMLInputElement).value,
-
-        representative_title: (document.getElementById("representative_title") as HTMLSelectElement).value,
-        representative_name: (document.getElementById("representative_name") as HTMLInputElement).value,
-        representative_email: (document.getElementById("representative_email") as HTMLInputElement).value,
-        representative_phone: (document.getElementById("representative_phone") as HTMLInputElement).value,
-
-        director_name: (document.getElementById("director_name") as HTMLInputElement).value,
-        director_email: (document.getElementById("director_email") as HTMLInputElement).value,
-        director_phone: (document.getElementById("director_phone") as HTMLInputElement).value,
-
-        additional_directors: (document.getElementById("additional_directors") as HTMLTextAreaElement).value,
-        secretary_name: (document.getElementById("secretary_name") as HTMLInputElement).value,
-        secretary_email: (document.getElementById("secretary_email") as HTMLInputElement).value,
-        secretary_phone: (document.getElementById("secretary_phone") as HTMLInputElement).value,
-
-        ubo_details: (document.getElementById("ubo_details") as HTMLTextAreaElement).value,
-        trade_sector: (document.getElementById("trade_sector") as HTMLSelectElement).value,
-        source_of_funds: (document.getElementById("source_of_funds") as HTMLSelectElement).value,
+        company_name: getValue("company_name"),
+        cac_number: getValue("cac_number"),
+        tin: getValue("tin"),
+        business_type: getValue("business_type"),
+        registered_address: getValue("registered_address"),
+        company_email: getValue("company_email"),
+        representative_title: getValue("representative_title"),
+        representative_name: getValue("representative_name"),
+        representative_email: getValue("representative_email"),
+        representative_phone: getValue("representative_phone"),
       }),
     });
 
-    const data = await response.json();
-
     if (response.ok) {
-      setMessage("KYB submitted successfully.");
+      router.push("/dashboard/onboarding/kyb/success");
     } else {
-      setMessage(data.error || "Something went wrong. Please try again.");
+      const data = await response.json();
+      setError(data.error || "Something went wrong. Please try again.");
+      setSubmitting(false);
     }
   }
 
+  const inp = "w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400/50";
+  const lbl = "text-xs font-medium text-slate-400 mb-1.5 block";
+
   return (
-    <main className="min-h-screen bg-slate-950 text-white p-8">
-      <div className="mx-auto max-w-5xl">
-        <Link href="/dashboard/onboarding" className="text-amber-400 hover:text-amber-300">
-          ← Back to Onboarding
-        </Link>
+    <main className="min-h-screen bg-slate-950 text-white">
+      <header className="border-b border-white/10 px-8 py-5 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard/onboarding" className="text-sm text-slate-400 hover:text-white transition">← Back</Link>
+          <span className="text-white/20">/</span>
+          <span className="text-sm text-slate-400">KYB Verification</span>
+        </div>
+        <span className="text-xl font-black">KY<span className="text-amber-400">A</span></span>
+      </header>
 
-        <h1 className="mt-8 text-4xl font-black">KYB Verification</h1>
-        <p className="mt-3 text-slate-400">
-          Complete business verification before initiating trade transactions.
-        </p>
+      <div className="mx-auto max-w-2xl px-8 py-12">
 
-        <form className="mt-10 space-y-8">
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
-            <h2 className="text-xl font-bold">Company Information</h2>
+        <div className="mb-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-xs font-medium text-purple-400 mb-4">
+            Business Account — KYB Verification
+          </div>
+          <h1 className="text-3xl font-black mb-2">Business Verification</h1>
+          <p className="text-slate-400 text-sm">
+            Complete your business verification to access the KYA trade platform. All information is kept strictly confidential and used for compliance purposes only.
+          </p>
+        </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <input id="company_name" className="rounded-xl border border-white/10 bg-slate-900 p-4" placeholder="Company / Business Name" />
-              <input id="cac_number" className="rounded-xl border border-white/10 bg-slate-900 p-4" placeholder="CAC Registration Number" />
-              <input id="tin" className="rounded-xl border border-white/10 bg-slate-900 p-4" placeholder="Tax Identification Number" />
+        <div className="flex flex-col gap-5">
 
-              <select id="business_type" className="rounded-xl border border-white/10 bg-slate-900 p-4">
-                <option>Limited Liability Company</option>
-                <option>Business Name / Enterprise</option>
-                <option>Partnership</option>
-                <option>Sole Proprietorship</option>
-                <option>Other</option>
-              </select>
-
-              <input id="business_sector" className="rounded-xl border border-white/10 bg-slate-900 p-4" placeholder="Business Sector" />
-              <input id="company_email" className="rounded-xl border border-white/10 bg-slate-900 p-4" placeholder="Company Email Address" />
-              <input id="registered_address" className="rounded-xl border border-white/10 bg-slate-900 p-4 md:col-span-2" placeholder="Registered Business Address" />
+          {/* Company Details */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+            <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-5">Company Details</h2>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className={lbl}>Company Name <span className="text-amber-400">*</span></label>
+                <input id="company_name" className={inp} placeholder="Registered company name" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={lbl}>CAC Number <span className="text-amber-400">*</span></label>
+                  <input id="cac_number" className={inp} placeholder="e.g. RC123456" />
+                </div>
+                <div>
+                  <label className={lbl}>TIN</label>
+                  <input id="tin" className={inp} placeholder="Tax Identification Number" />
+                </div>
+              </div>
+              <div>
+                <label className={lbl}>Business Type <span className="text-amber-400">*</span></label>
+                <select id="business_type" className={inp}>
+                  <option value="">Select business type</option>
+                  <option>Private Limited Company (Ltd)</option>
+                  <option>Public Limited Company (PLC)</option>
+                  <option>Sole Proprietorship</option>
+                  <option>Partnership</option>
+                  <option>Cooperative</option>
+                  <option>NGO / Non-Profit</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div>
+                <label className={lbl}>Registered Address <span className="text-amber-400">*</span></label>
+                <input id="registered_address" className={inp} placeholder="Full registered business address" />
+              </div>
+              <div>
+                <label className={lbl}>Company Email</label>
+                <input id="company_email" type="email" className={inp} placeholder="company@business.com" />
+              </div>
             </div>
-          </section>
+          </div>
 
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
-            <h2 className="text-xl font-bold">Authorised Representative</h2>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <select id="representative_title" className="rounded-xl border border-white/10 bg-slate-900 p-4">
-                <option>Mr</option>
-                <option>Mrs</option>
-                <option>Miss</option>
-                <option>Ms</option>
-                <option>Dr</option>
-                <option>Chief</option>
-                <option>Prof</option>
-                <option>Alhaji</option>
-                <option>Alhaja</option>
-                <option>Pastor</option>
-                <option>Other</option>
-              </select>
-
-              <input id="representative_name" className="rounded-xl border border-white/10 bg-slate-900 p-4" placeholder="Full Name" />
-              <input id="representative_email" className="rounded-xl border border-white/10 bg-slate-900 p-4" placeholder="Email Address" />
-              <input id="representative_phone" className="rounded-xl border border-white/10 bg-slate-900 p-4" placeholder="Phone Number" />
+          {/* Director / Representative */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+            <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-5">Director / Authorised Representative</h2>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className={lbl}>Title</label>
+                <select id="representative_title" className={inp}>
+                  <option value="">Select title</option>
+                  {["Mr", "Mrs", "Miss", "Ms", "Dr", "Chief", "Prof", "Alhaji", "Alhaja", "Other"].map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={lbl}>Full Name <span className="text-amber-400">*</span></label>
+                <input id="representative_name" className={inp} placeholder="Director or representative full name" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={lbl}>Email Address <span className="text-amber-400">*</span></label>
+                  <input id="representative_email" type="email" className={inp} placeholder="director@business.com" />
+                </div>
+                <div>
+                  <label className={lbl}>Phone Number</label>
+                  <input id="representative_phone" className={inp} placeholder="+234 800 000 0000" />
+                </div>
+              </div>
             </div>
-          </section>
+          </div>
 
-          <section className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6">
-            <h2 className="text-xl font-bold">Directors</h2>
-            <p className="mt-2 text-sm text-slate-400">
-              At least one director must be provided with email and phone number.
+          {/* Disclaimer */}
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+            <p className="text-xs text-slate-400 leading-relaxed">
+              By submitting this form you confirm that all information provided is accurate and complete, and that you are authorised to submit this application on behalf of the company. KYA Digital Services Ltd is not a bank or PSP. Your data is used solely for compliance and business verification purposes in accordance with applicable AML/CFT regulations.
             </p>
+          </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <input id="director_name" className="rounded-xl border border-white/10 bg-slate-900 p-4" placeholder="Director 1 Full Name" />
-              <input id="director_email" className="rounded-xl border border-white/10 bg-slate-900 p-4" placeholder="Director 1 Email Address" />
-              <input id="director_phone" className="rounded-xl border border-white/10 bg-slate-900 p-4" placeholder="Director 1 Phone Number" />
-
-              <textarea
-                id="additional_directors"
-                className="rounded-xl border border-white/10 bg-slate-900 p-4 md:col-span-2"
-                rows={5}
-                placeholder="Additional directors: include full name, email address, phone number, role/title and address for each director"
-              />
+          {error && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+              <p className="text-sm text-red-400">{error}</p>
             </div>
-          </section>
-
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
-            <h2 className="text-xl font-bold">Company Secretary</h2>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <select
-  id="secretary_title"
-  className="rounded-xl border border-white/10 bg-slate-900 p-4"
->
-  <option value="">Select Title</option>
-  <option>Mr</option>
-  <option>Mrs</option>
-  <option>Miss</option>
-  <option>Ms</option>
-  <option>Dr</option>
-  <option>Chief</option>
-  <option>Prof</option>
-  <option>Alhaji</option>
-  <option>Alhaja</option>
-  <option>Pastor</option>
-  <option>Other</option>
-</select>
-              <input id="secretary_name" className="rounded-xl border border-white/10 bg-slate-900 p-4" placeholder="Secretary Full Name" />
-              <input id="secretary_email" className="rounded-xl border border-white/10 bg-slate-900 p-4" placeholder="Secretary Email Address" />
-              <input id="secretary_phone" className="rounded-xl border border-white/10 bg-slate-900 p-4" placeholder="Secretary Phone Number" />
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
-            <h2 className="text-xl font-bold">Shareholders & Beneficial Owners</h2>
-
-            <textarea
-              id="ubo_details"
-              className="mt-6 w-full rounded-xl border border-white/10 bg-slate-900 p-4"
-              rows={6}
-              placeholder="List shareholders and UBOs: full name, ownership %, email, phone number, nationality/country and address"
-            />
-          </section>
-
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
-            <h2 className="text-xl font-bold">Trade Profile</h2>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <select id="trade_sector" className="rounded-xl border border-white/10 bg-slate-900 p-4">
-                <option>Solar & Energy Infrastructure</option>
-                <option>Electronics & Consumer Devices</option>
-                <option>Industrial Machinery</option>
-                <option>Construction Materials</option>
-                <option>Packaging & Manufacturing Inputs</option>
-              </select>
-
-              <select id="source_of_funds" className="rounded-xl border border-white/10 bg-slate-900 p-4">
-                <option>Business Revenue</option>
-                <option>Shareholder Funds</option>
-                <option>Bank Facility</option>
-                <option>Investor Funding</option>
-                <option>Other</option>
-              </select>
-            </div>
-          </section>
+          )}
 
           <button
             type="button"
             onClick={handleSubmit}
-            className="w-full rounded-xl bg-amber-400 py-4 font-bold text-slate-950 hover:bg-amber-300"
+            disabled={submitting}
+            className="w-full rounded-xl bg-amber-400 py-4 font-bold text-slate-950 hover:bg-amber-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Submit KYB Verification
+            {submitting ? "Submitting..." : "Submit KYB Verification →"}
           </button>
 
-          {message && (
-            <p className="text-center text-sm text-amber-400">{message}</p>
-          )}
-        </form>
+        </div>
       </div>
     </main>
   );
