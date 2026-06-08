@@ -6,6 +6,24 @@ import { supabaseServer } from "@/lib/supabase-server";
 
 const ADMIN_IDS = process.env.ADMIN_USER_IDS?.split(",") || [];
 
+const STEP_NAMES: Record<number, string> = {
+  1: "Customer Onboarding",
+  2: "Supplier Selection",
+  3: "Trade Setup",
+  4: "Form M Submission",
+  5: "Funding Instruction",
+  6: "LC Issuance",
+  7: "Pre-Shipment Inspection",
+  8: "Shipment",
+  9: "Document Validation",
+  10: "FX Processing",
+  11: "USD Credit",
+  12: "Payment Instruction",
+  13: "Payment Execution",
+  14: "LC Liquidation",
+  15: "Transaction Completion",
+};
+
 export default async function DashboardPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
@@ -42,16 +60,16 @@ export default async function DashboardPage() {
   const docs = documents || [];
   const txns = transactions || [];
 
-  const getStatus = (doc: any) => doc.status || doc.verification_status || "pending";
+  const getStatus = (doc: { status?: string; verification_status?: string }) =>
+    doc.status || doc.verification_status || "pending";
+
   const totalDocs = docs.length;
   const approvedDocs = docs.filter(d => getStatus(d) === "approved").length;
   const rejectedDocs = docs.filter(d => getStatus(d) === "rejected").length;
   const pendingDocs = docs.filter(d => getStatus(d) === "pending").length;
   const rejectedList = docs.filter(d => getStatus(d) === "rejected");
 
-  const KYC_REQUIRED = 5;
-  const KYB_REQUIRED = 5;
-  const requiredCount = accountType === "personal" ? KYC_REQUIRED : accountType === "business" ? KYB_REQUIRED : 0;
+  const requiredCount = accountType ? 5 : 0;
   const allApproved = requiredCount > 0 && approvedDocs >= requiredCount;
   const hasRejections = rejectedDocs > 0;
   const hasSubmitted = totalDocs > 0;
@@ -71,22 +89,6 @@ export default async function DashboardPage() {
     return "text-slate-400";
   };
 
-  const stepNames: Record<number, string> = {
-    1: "KYC / KYB",
-    2: "Supplier Selection",
-    3: "Form M",
-    4: "Naira Funding",
-    5: "LC Issuance",
-    6: "Pre-Shipment",
-    7: "Shipment",
-    8: "FX Processing",
-    9: "USD Credit",
-    10: "Payment",
-    11: "Settlement",
-    12: "LC Discharge",
-    13: "Complete",
-  };
-
   return (
     <main className="min-h-screen bg-slate-950 text-white">
 
@@ -95,39 +97,32 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-6">
             <span className="text-xl font-black">KY<span className="text-amber-400">A</span></span>
             <nav className="hidden md:flex items-center gap-5">
-              <Link href="/dashboard/documents" className="text-sm text-slate-400 hover:text-white transition">
-                Documents
-              </Link>
-              <Link href="/dashboard/onboarding" className="text-sm text-slate-400 hover:text-white transition">
-                Onboarding
-              </Link>
-              <Link href="/dashboard/suppliers" className="text-sm text-slate-400 hover:text-white transition">
-                Suppliers
-              </Link>
+              <Link href="/dashboard/documents" className="text-sm text-slate-400 hover:text-white transition">Documents</Link>
+              <Link href="/dashboard/onboarding" className="text-sm text-slate-400 hover:text-white transition">Onboarding</Link>
+              <Link href="/dashboard/suppliers" className="text-sm text-slate-400 hover:text-white transition">Suppliers</Link>
               {allApproved && (
-                <Link href="/transactions/new" className="text-sm text-slate-400 hover:text-white transition">
-                  New Transaction
-                </Link>
+                <Link href="/transactions/new" className="text-sm text-slate-400 hover:text-white transition">New Transaction</Link>
               )}
+              <Link href="/dashboard/account" className="text-sm text-slate-400 hover:text-white transition">Account</Link>
             </nav>
           </div>
           <div className="flex items-center gap-3">
             {isAdmin && (
               <div className="flex gap-2">
-                <Link
-                  href="/admin/documents"
-                  className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-400 hover:bg-blue-500/20 transition"
-                >
-                  Documents
+                <Link href="/admin/documents"
+                  className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-400 hover:bg-blue-500/20 transition">
+                  Admin Docs
                 </Link>
-                <Link
-                  href="/admin/transactions"
-                  className="rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs font-medium text-purple-400 hover:bg-purple-500/20 transition"
-                >
-                  Transactions
+                <Link href="/admin/transactions"
+                  className="rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs font-medium text-purple-400 hover:bg-purple-500/20 transition">
+                  Admin Txns
                 </Link>
               </div>
             )}
+            <Link href="/dashboard/account"
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white hover:border-white/20 transition">
+              Settings
+            </Link>
             <UserButton />
           </div>
         </div>
@@ -151,7 +146,7 @@ export default async function DashboardPage() {
               {rejectedDocs} document{rejectedDocs > 1 ? "s were" : " was"} rejected
             </h2>
             <div className="flex flex-col gap-2 mb-4">
-              {rejectedList.map((doc: any, i: number) => (
+              {rejectedList.map((doc, i) => (
                 <div key={i} className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3">
                   <p className="text-sm font-medium text-white">{doc.document_type}</p>
                   {doc.rejection_reason && (
@@ -160,10 +155,8 @@ export default async function DashboardPage() {
                 </div>
               ))}
             </div>
-            <Link
-              href="/dashboard/documents"
-              className="inline-block rounded-xl bg-red-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-red-400 transition"
-            >
+            <Link href="/dashboard/documents"
+              className="inline-block rounded-xl bg-red-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-red-400 transition">
               Re-upload Documents →
             </Link>
           </div>
@@ -207,17 +200,13 @@ export default async function DashboardPage() {
               {!hasSubmitted && (
                 <div className="flex gap-3 flex-shrink-0 flex-wrap">
                   {!accountType ? (
-                    <Link
-                      href="/dashboard/onboarding"
-                      className="rounded-xl bg-amber-400 px-6 py-3 text-sm font-bold text-slate-950 hover:bg-amber-300 transition"
-                    >
+                    <Link href="/dashboard/onboarding"
+                      className="rounded-xl bg-amber-400 px-6 py-3 text-sm font-bold text-slate-950 hover:bg-amber-300 transition">
                       Begin Verification
                     </Link>
                   ) : (
-                    <Link
-                      href="/dashboard/documents"
-                      className="rounded-xl bg-amber-400 px-6 py-3 text-sm font-bold text-slate-950 hover:bg-amber-300 transition"
-                    >
+                    <Link href="/dashboard/documents"
+                      className="rounded-xl bg-amber-400 px-6 py-3 text-sm font-bold text-slate-950 hover:bg-amber-300 transition">
                       Upload Documents
                     </Link>
                   )}
@@ -258,9 +247,7 @@ export default async function DashboardPage() {
 
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
             <p className="text-sm text-slate-400">Verification</p>
-            <h2 className={"mt-4 text-2xl font-black " + getVerificationColor()}>
-              {getVerificationLabel()}
-            </h2>
+            <h2 className={"mt-4 text-2xl font-black " + getVerificationColor()}>{getVerificationLabel()}</h2>
             <div className="mt-2 flex gap-3 text-xs flex-wrap">
               {approvedDocs > 0 && <span className="text-emerald-400">{approvedDocs} approved</span>}
               {rejectedDocs > 0 && <span className="text-red-400">{rejectedDocs} rejected</span>}
@@ -298,10 +285,8 @@ export default async function DashboardPage() {
               <p className="mt-0.5 text-xs text-slate-500">All your trade flows and current status</p>
             </div>
             {allApproved && (
-              <Link
-                href="/transactions/new"
-                className="rounded-lg bg-amber-400 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-amber-300 transition"
-              >
+              <Link href="/transactions/new"
+                className="rounded-lg bg-amber-400 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-amber-300 transition">
                 + New Transaction
               </Link>
             )}
@@ -317,10 +302,8 @@ export default async function DashboardPage() {
                   : "Complete verification to initiate trade transactions."}
               </p>
               {allApproved && (
-                <Link
-                  href="/transactions/new"
-                  className="mt-6 rounded-xl bg-amber-400 px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-amber-300 transition"
-                >
+                <Link href="/transactions/new"
+                  className="mt-6 rounded-xl bg-amber-400 px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-amber-300 transition">
                   Start Your First Trade
                 </Link>
               )}
@@ -330,35 +313,25 @@ export default async function DashboardPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/5">
-                    <th className="px-6 py-3 text-left font-mono text-xs uppercase tracking-wider text-slate-600">Reference</th>
-                    <th className="px-6 py-3 text-left font-mono text-xs uppercase tracking-wider text-slate-600">Supplier</th>
-                    <th className="px-6 py-3 text-left font-mono text-xs uppercase tracking-wider text-slate-600">Value</th>
-                    <th className="px-6 py-3 text-left font-mono text-xs uppercase tracking-wider text-slate-600">Stage</th>
-                    <th className="px-6 py-3 text-left font-mono text-xs uppercase tracking-wider text-slate-600">Status</th>
-                    <th className="px-6 py-3 text-left font-mono text-xs uppercase tracking-wider text-slate-600"></th>
+                    {["Reference", "Supplier", "Value", "Stage", "Status", ""].map(h => (
+                      <th key={h} className="px-6 py-3 text-left font-mono text-xs uppercase tracking-wider text-slate-600">{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {txns.map((txn: any) => (
+                  {txns.map(txn => (
                     <tr key={txn.id} className="hover:bg-white/5 transition">
                       <td className="px-6 py-4 font-mono text-xs text-amber-400">{txn.transaction_ref}</td>
                       <td className="px-6 py-4 text-sm text-white">{txn.supplier_name}</td>
-                      <td className="px-6 py-4 text-sm text-white">
-                        ${Number(txn.total_value).toLocaleString()} {txn.currency}
-                      </td>
-                      <td className="px-6 py-4 text-xs text-slate-400">
-                        {stepNames[txn.current_step] || "Step " + txn.current_step}
-                      </td>
+                      <td className="px-6 py-4 text-sm text-white">${Number(txn.total_value).toLocaleString()} {txn.currency}</td>
+                      <td className="px-6 py-4 text-xs text-slate-400">{STEP_NAMES[txn.current_step] || "Step " + txn.current_step}</td>
                       <td className="px-6 py-4">
                         <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium capitalize text-amber-400">
                           {txn.status}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <Link
-                          href={"/dashboard/transactions/" + txn.id}
-                          className="text-xs text-slate-400 hover:text-amber-400 transition"
-                        >
+                        <Link href={"/dashboard/transactions/" + txn.id} className="text-xs text-slate-400 hover:text-amber-400 transition">
                           View →
                         </Link>
                       </td>
@@ -371,12 +344,9 @@ export default async function DashboardPage() {
         </div>
 
         {/* QUICK ACTIONS */}
-        <div className="grid gap-4 md:grid-cols-3 mb-6">
-          <Link
-            href="/dashboard/onboarding"
-            className={"rounded-2xl border p-6 transition hover:border-amber-400/30 " +
-              (allApproved ? "border-white/10 bg-white/5" : "border-amber-400/20 bg-amber-400/5")}
-          >
+        <div className="grid gap-4 md:grid-cols-4 mb-6">
+          <Link href="/dashboard/onboarding"
+            className={"rounded-2xl border p-6 transition hover:border-amber-400/30 " + (allApproved ? "border-white/10 bg-white/5" : "border-amber-400/20 bg-amber-400/5")}>
             <span className="text-2xl">📋</span>
             <p className="mt-3 font-semibold text-white">
               {allApproved ? "View Onboarding" : !accountType ? "Start Onboarding" : "Continue Onboarding"}
@@ -386,32 +356,33 @@ export default async function DashboardPage() {
             </p>
           </Link>
 
-          <Link
-            href="/dashboard/documents"
-            className="rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-white/20"
-          >
+          <Link href="/dashboard/documents"
+            className="rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-white/20">
             <span className="text-2xl">📄</span>
             <p className="mt-3 font-semibold text-white">Documents</p>
             <p className="mt-1 text-xs text-slate-500">
-              {totalDocs > 0
-                ? totalDocs + " document" + (totalDocs > 1 ? "s" : "") + " uploaded"
-                : "Upload verification documents"}
+              {totalDocs > 0 ? totalDocs + " document" + (totalDocs > 1 ? "s" : "") + " uploaded" : "Upload verification documents"}
             </p>
           </Link>
 
-          <Link
-            href="/dashboard/suppliers"
-            className="rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-white/20"
-          >
+          <Link href="/dashboard/suppliers"
+            className="rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-white/20">
             <span className="text-2xl">🏭</span>
             <p className="mt-3 font-semibold text-white">Supplier Marketplace</p>
             <p className="mt-1 text-xs text-slate-500">Browse KYA verified suppliers</p>
           </Link>
+
+          <Link href="/dashboard/account"
+            className="rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-white/20">
+            <span className="text-2xl">⚙️</span>
+            <p className="mt-3 font-semibold text-white">Account Settings</p>
+            <p className="mt-1 text-xs text-slate-500">Password, email, phone, security</p>
+          </Link>
         </div>
 
         <div className="mt-8 flex items-center justify-between border-t border-white/10 pt-6">
-          <Link href="/" className="text-sm text-slate-400 hover:text-white transition">← Back to Home</Link>
-          <p className="text-xs text-slate-700">Not a PSP · Not a Bank · CAC Registered · Nigeria</p>
+          <p className="text-xs text-slate-600">KYA Digital Services Ltd · Not a PSP · Not a Bank · CAC Registered · Nigeria</p>
+          <Link href="/terms" className="text-xs text-slate-600 hover:text-slate-400 transition">Terms of Service</Link>
         </div>
 
       </div>
