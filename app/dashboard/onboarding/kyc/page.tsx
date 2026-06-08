@@ -16,17 +16,22 @@ export default function KYCPage() {
     const getValue = (id: string) =>
       (document.getElementById(id) as HTMLInputElement | HTMLSelectElement)?.value || "";
 
+    const firstName = getValue("first_name");
+    const lastName = getValue("last_name");
+    const dob = getValue("dob");
+    const bvn = getValue("bvn");
+
     const response = await fetch("/api/kyc", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         account_type: "individual",
         title: getValue("title"),
-        first_name: getValue("first_name"),
-        last_name: getValue("last_name"),
+        first_name: firstName,
+        last_name: lastName,
         email: getValue("email"),
         phone: getValue("phone"),
-        dob: getValue("dob"),
+        dob,
         nationality: getValue("nationality"),
         address: getValue("address"),
         id_type: getValue("id_type"),
@@ -34,16 +39,31 @@ export default function KYCPage() {
         source_of_funds: getValue("source_of_funds"),
         is_joint_account: false,
         joint_full_name: getValue("joint_full_name"),
+        bvn,
       }),
     });
 
-    if (response.ok) {
-      router.push("/dashboard/onboarding/kyc/success");
-    } else {
+    if (!response.ok) {
       const data = await response.json();
       setError(data.error || "Something went wrong. Please try again.");
       setSubmitting(false);
+      return;
     }
+
+    // Run BVN verification in background
+    if (bvn && bvn.length === 11) {
+      try {
+        await fetch("/api/verify/bvn", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bvn, first_name: firstName, last_name: lastName, dob }),
+        });
+      } catch (err) {
+        console.error("BVN verification error:", err);
+      }
+    }
+
+    router.push("/dashboard/onboarding/kyc/success");
   }
 
   const inp = "w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400/50";
@@ -53,9 +73,7 @@ export default function KYCPage() {
     <main className="min-h-screen bg-slate-950 text-white">
       <header className="border-b border-white/10 px-8 py-5 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard/onboarding" className="text-sm text-slate-400 hover:text-white transition">
-            ← Back
-          </Link>
+          <Link href="/dashboard/onboarding" className="text-sm text-slate-400 hover:text-white transition">← Back</Link>
           <span className="text-white/20">/</span>
           <span className="text-sm text-slate-400">KYC Verification</span>
         </div>
@@ -144,8 +162,8 @@ export default function KYCPage() {
                   <option value="">Select ID type</option>
                   <option>International Passport</option>
                   <option>National ID</option>
-                  <option>Driver's Licence</option>
-                  <option>Voter's Card</option>
+                  <option>Driver&apos;s Licence</option>
+                  <option>Voter&apos;s Card</option>
                 </select>
               </div>
               <div>
@@ -159,6 +177,11 @@ export default function KYCPage() {
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
             <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-5">Financial Information</h2>
             <div className="flex flex-col gap-4">
+              <div>
+                <label className={lbl}>BVN — Bank Verification Number <span className="text-amber-400">*</span></label>
+                <input id="bvn" className={inp} placeholder="Enter your 11-digit BVN" maxLength={11} />
+                <p className="text-xs text-slate-600 mt-1.5">Your BVN will be verified against your submitted details via a licensed verification provider.</p>
+              </div>
               <div>
                 <label className={lbl}>Source of Funds <span className="text-amber-400">*</span></label>
                 <select id="source_of_funds" className={inp}>
@@ -181,7 +204,7 @@ export default function KYCPage() {
           {/* Disclaimer */}
           <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
             <p className="text-xs text-slate-400 leading-relaxed">
-              By submitting this form you confirm that all information provided is accurate and complete. KYA Digital Services Ltd is not a bank or PSP. Your data is used solely for compliance and identity verification purposes in accordance with applicable AML/CFT regulations.
+              By submitting this form you confirm that all information provided is accurate and complete. KYA Digital Services Ltd is not a bank or PSP. Your data is used solely for compliance and identity verification purposes in accordance with applicable AML/CFT regulations and the CBN 2025 AML Baseline Standards.
             </p>
           </div>
 
@@ -197,7 +220,7 @@ export default function KYCPage() {
             disabled={submitting}
             className="w-full rounded-xl bg-amber-400 py-4 font-bold text-slate-950 hover:bg-amber-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {submitting ? "Submitting..." : "Submit KYC Verification →"}
+            {submitting ? "Submitting & Verifying..." : "Submit KYC Verification →"}
           </button>
 
         </div>

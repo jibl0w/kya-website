@@ -8,7 +8,10 @@ export async function POST(request: Request) {
   if (!userId) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
   const body = await request.json();
-  const { title, first_name, last_name, email, phone, dob, nationality, address, id_type, id_number } = body;
+  const {
+    title, first_name, last_name, email, phone, dob,
+    nationality, address, id_type, id_number, bvn,
+  } = body;
 
   if (!first_name || !last_name || !email || !dob || !nationality) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -23,19 +26,33 @@ export async function POST(request: Request) {
   if (existing) {
     const { error } = await supabaseServer
       .from("kyc_profiles")
-      .update({ title, first_name, last_name, email, phone, dob, nationality, address, id_type, id_number, kyc_status: "pending" })
+      .update({
+        title, first_name, last_name, email, phone, dob,
+        nationality, address, id_type, id_number, bvn,
+        kyc_status: "pending",
+      })
       .eq("user_id", userId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   } else {
     const { error } = await supabaseServer
       .from("kyc_profiles")
-      .insert({ user_id: userId, title, first_name, last_name, email, phone, dob, nationality, address, id_type, id_number, kyc_status: "pending" });
+      .insert({
+        user_id: userId, title, first_name, last_name, email,
+        phone, dob, nationality, address, id_type, id_number, bvn,
+        kyc_status: "pending",
+      });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   try {
-    await notifyCustomerKycSubmitted({ customerEmail: email, customerName: first_name + " " + last_name });
-    await notifyAdminKycSubmitted({ customerName: first_name + " " + last_name, customerEmail: email });
+    await notifyCustomerKycSubmitted({
+      customerEmail: email,
+      customerName: first_name + " " + last_name,
+    });
+    await notifyAdminKycSubmitted({
+      customerName: first_name + " " + last_name,
+      customerEmail: email,
+    });
   } catch (err) {
     console.error("Notification error:", err);
   }
