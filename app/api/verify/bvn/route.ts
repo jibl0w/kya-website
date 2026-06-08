@@ -11,13 +11,17 @@ export async function POST(req: Request) {
   if (!bvn) return NextResponse.json({ error: "BVN is required" }, { status: 400 });
 
   try {
+const isSandbox = process.env.DOJAH_ENV === "sandbox";
+    const appId = isSandbox ? process.env.DOJAH_APP_ID_TEST! : process.env.DOJAH_APP_ID!;
+    const privateKey = isSandbox ? process.env.DOJAH_PRIVATE_KEY_TEST! : process.env.DOJAH_PRIVATE_KEY!;
+
     const dojahRes = await fetch(
-      `https://api.dojah.io/api/v1/kyc/bvn?bvn=${bvn}`,
+      `https://sandbox.dojah.io/api/v1/kyc/bvn?bvn=${bvn}`,
       {
         method: "GET",
         headers: {
-          "AppId": process.env.DOJAH_APP_ID!,
-          "Authorization": process.env.DOJAH_PRIVATE_KEY!,
+          "AppId": appId,
+          "Authorization": privateKey,
           "Content-Type": "application/json",
         },
       }
