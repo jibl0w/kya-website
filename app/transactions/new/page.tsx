@@ -1,17 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import OTPConfirmation from "@/app/components/OTPConfirmation";
 
 const SUPPLIER_CATEGORIES = [
-  { value: "electronics", label: "Electronics & Consumer Technology" },
-  { value: "solar", label: "Solar & Energy Infrastructure" },
-  { value: "industrial", label: "Industrial Equipment & Machinery" },
-  { value: "construction", label: "Construction & Building Materials" },
-  { value: "textiles", label: "Textiles, Packaging & Manufacturing Inputs" },
+  { value: "Electronics & Consumer Technology", label: "Electronics & Consumer Technology" },
+  { value: "Solar & Energy Infrastructure", label: "Solar & Energy Infrastructure" },
+  { value: "Industrial Equipment & Machinery", label: "Industrial Equipment & Machinery" },
+  { value: "Construction & Building Materials", label: "Construction & Building Materials" },
+  { value: "Textiles, Packaging & Manufacturing Inputs", label: "Textiles, Packaging & Manufacturing Inputs" },
 ];
 
 const NIGERIAN_PORTS = [
@@ -25,17 +25,14 @@ const NIGERIAN_PORTS = [
 export default function NewTransactionPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showOTP, setShowOTP] = useState(false);
 
-  const searchParams = typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search)
-    : new URLSearchParams();
-
   const [form, setForm] = useState({
-    supplierName: searchParams.get("supplierName") || "",
-    supplierCategory: searchParams.get("category") || "",
+    supplierName: "",
+    supplierCategory: "",
     productDescription: "",
     quantity: "",
     unitPrice: "",
@@ -43,6 +40,18 @@ export default function NewTransactionPage() {
     portOfDestination: "",
     notes: "",
   });
+
+  useEffect(() => {
+    const name = searchParams.get("supplierName");
+    const category = searchParams.get("category");
+    if (name || category) {
+      setForm(prev => ({
+        ...prev,
+        supplierName: name || prev.supplierName,
+        supplierCategory: category || prev.supplierCategory,
+      }));
+    }
+  }, [searchParams]);
 
   const update = (field: string, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }));
@@ -145,6 +154,9 @@ export default function NewTransactionPage() {
                 <label className={lbl}>Supplier Name <span className="text-amber-400">*</span></label>
                 <input value={form.supplierName} onChange={e => update("supplierName", e.target.value)}
                   className={inp} placeholder="e.g. Shenzhen TechCo Ltd" />
+                <p className="text-xs text-slate-600 mt-1.5">
+                  <Link href="/dashboard/suppliers" className="text-amber-400 hover:text-amber-300">Browse verified suppliers →</Link>
+                </p>
               </div>
               <div>
                 <label className={lbl}>Supplier Category <span className="text-amber-400">*</span></label>
@@ -174,7 +186,7 @@ export default function NewTransactionPage() {
                     className={inp} placeholder="e.g. 200" />
                 </div>
                 <div>
-                  <label className={lbl}>Unit Price (USD) <span className="text-amber-400">*</span></label>
+                  <label className={lbl}>Unit Price <span className="text-amber-400">*</span></label>
                   <input type="number" value={form.unitPrice} onChange={e => update("unitPrice", e.target.value)}
                     className={inp} placeholder="e.g. 150" />
                 </div>
@@ -221,7 +233,7 @@ export default function NewTransactionPage() {
           {/* Security notice */}
           <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
             <p className="text-xs text-slate-400 leading-relaxed">
-              <span className="text-amber-400 font-semibold">🔐 Verification required.</span> After clicking Submit you will receive a 6-digit verification code at your registered email address. You must enter this code to confirm the transaction. This protects your account from unauthorised trade activity.
+              <span className="text-amber-400 font-semibold">🔐 Verification required.</span> After clicking Submit you will receive a 6-digit verification code at your registered email address. You must enter this code to confirm the transaction.
             </p>
           </div>
 
@@ -231,11 +243,8 @@ export default function NewTransactionPage() {
             </div>
           )}
 
-          <button
-            onClick={handleReview}
-            disabled={submitting}
-            className="w-full rounded-xl bg-amber-400 py-4 font-bold text-slate-950 hover:bg-amber-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <button onClick={handleReview} disabled={submitting}
+            className="w-full rounded-xl bg-amber-400 py-4 font-bold text-slate-950 hover:bg-amber-300 transition disabled:opacity-50 disabled:cursor-not-allowed">
             {submitting ? "Creating Transaction..." : "Submit Transaction — Verify with OTP →"}
           </button>
 
