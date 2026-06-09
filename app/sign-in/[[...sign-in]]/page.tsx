@@ -11,7 +11,7 @@ export default function SignInPage() {
       </div>
       <SignIn
         routing="hash"
-        afterSignInUrl="/dashboard"
+        fallbackRedirectUrl="/dashboard"
         signUpUrl="/sign-up"
       />
       <div className="mt-6 text-center">
