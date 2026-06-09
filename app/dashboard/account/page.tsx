@@ -29,29 +29,22 @@ export default async function AccountPage() {
           </p>
         </div>
 
-        <div className="rounded-2xl overflow-hidden">
+        <div className="rounded-2xl overflow-hidden bg-white">
           <UserProfile
             appearance={{
               variables: {
                 colorPrimary: "#C9A84C",
-                colorBackground: "#0D1420",
-                colorInputBackground: "#1E293B",
-                colorInputText: "#E8E0D0",
-                colorText: "#E8E0D0",
-                colorTextSecondary: "#94A3B8",
-                colorNeutral: "#E8E0D0",
+                colorBackground: "#ffffff",
+                colorInputBackground: "#f8fafc",
+                colorInputText: "#0f172a",
+                colorText: "#0f172a",
+                colorTextSecondary: "#475569",
+                colorNeutral: "#0f172a",
                 colorDanger: "#EF4444",
                 colorSuccess: "#10B981",
-                colorWarning: "#F59E0B",
                 borderRadius: "12px",
                 fontFamily: "Arial, sans-serif",
                 fontSize: "14px",
-                fontWeight: {
-                  normal: 400,
-                  medium: 500,
-                  bold: 700,
-                },
-                spacingUnit: "16px",
               },
             }}
           />
