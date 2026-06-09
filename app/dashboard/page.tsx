@@ -30,35 +30,26 @@ export default async function DashboardPage() {
 
   const isAdmin = ADMIN_IDS.includes(userId);
 
-  const { data: kycProfile } = await supabaseServer
-    .from("kyc_profiles")
-    .select("id, first_name, last_name")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  const { data: kybProfile } = await supabaseServer
-    .from("kyb_profiles")
-    .select("id, company_name")
-    .eq("user_id", userId)
-    .maybeSingle();
+  const [
+    { data: kycProfile },
+    { data: kybProfile },
+    { data: documents },
+    { data: transactions },
+    { data: eddRequests },
+  ] = await Promise.all([
+    supabaseServer.from("kyc_profiles").select("id, first_name, last_name").eq("user_id", userId).maybeSingle(),
+    supabaseServer.from("kyb_profiles").select("id, company_name").eq("user_id", userId).maybeSingle(),
+    supabaseServer.from("documents").select("document_type, status, verification_status, rejection_reason").eq("user_id", userId),
+    supabaseServer.from("transactions").select("id, transaction_ref, supplier_name, supplier_category, total_value, currency, status, current_step, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
+    supabaseServer.from("edd_requests").select("id, status").eq("user_id", userId).in("status", ["pending", "in_progress"]),
+  ]);
 
   const accountType = kycProfile ? "personal" : kybProfile ? "business" : null;
   const displayName = kycProfile?.first_name || kybProfile?.company_name || null;
 
-  const { data: documents } = await supabaseServer
-    .from("documents")
-    .select("document_type, status, verification_status, rejection_reason")
-    .eq("user_id", userId);
-
-  const { data: transactions } = await supabaseServer
-    .from("transactions")
-    .select("id, transaction_ref, supplier_name, supplier_category, total_value, currency, status, current_step, created_at")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(10);
-
   const docs = documents || [];
   const txns = transactions || [];
+  const activeEdd = (eddRequests || []).length;
 
   const getStatus = (doc: { status?: string; verification_status?: string }) =>
     doc.status || doc.verification_status || "pending";
@@ -104,6 +95,11 @@ export default async function DashboardPage() {
                 <Link href="/transactions/new" className="text-sm text-slate-400 hover:text-white transition">New Transaction</Link>
               )}
               <Link href="/dashboard/account" className="text-sm text-slate-400 hover:text-white transition">Account</Link>
+              {activeEdd > 0 && (
+                <Link href="/dashboard/edd" className="text-sm text-amber-400 hover:text-amber-300 transition font-medium">
+                  EDD Required
+                </Link>
+              )}
             </nav>
           </div>
           <div className="flex items-center gap-3">
@@ -137,6 +133,21 @@ export default async function DashboardPage() {
           </h1>
           <p className="mt-2 text-slate-400">Your secure environment for cross-border trade management.</p>
         </div>
+
+        {/* EDD ALERT */}
+        {activeEdd > 0 && (
+          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6">
+            <p className="text-xs font-semibold uppercase tracking-widest text-amber-400 mb-1">Action Required</p>
+            <h2 className="text-lg font-bold mb-2">Additional verification requested</h2>
+            <p className="text-sm text-slate-400 mb-4">
+              Our compliance team requires additional documents from you. Please upload the requested documents to avoid restrictions on your account.
+            </p>
+            <Link href="/dashboard/edd"
+              className="inline-block rounded-xl bg-amber-400 px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-amber-300 transition">
+              Upload EDD Documents →
+            </Link>
+          </div>
+        )}
 
         {/* REJECTED DOCUMENTS ALERT */}
         {hasRejections && (
