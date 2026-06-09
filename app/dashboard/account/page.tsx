@@ -32,32 +32,48 @@ export default async function AccountPage() {
         <div className="rounded-2xl overflow-hidden">
           <UserProfile
             appearance={{
-              variables: {
-                colorPrimary: "#C9A84C",
-                colorBackground: "#0D1420",
-                colorInputBackground: "#0A0E1A",
-                colorInputText: "#E8E0D0",
-                colorText: "#E8E0D0",
-                colorTextSecondary: "#8A9AB5",
-                colorNeutral: "#4A5568",
-                borderRadius: "12px",
-              },
-              elements: {
-                rootBox: "w-full",
-                card: "bg-transparent shadow-none border border-white/10 rounded-2xl",
-                navbar: "bg-slate-900/50 border-r border-white/10",
-                navbarButton: "text-slate-400 hover:text-white",
-                navbarButtonActive: "text-amber-400",
-                pageScrollBox: "bg-transparent",
-                formButtonPrimary: "bg-amber-400 text-slate-950 hover:bg-amber-300",
-                formFieldInput: "bg-slate-900 border-white/10 text-white",
-                formFieldLabel: "text-slate-400",
-                headerTitle: "text-white",
-                headerSubtitle: "text-slate-400",
-                profileSectionTitleText: "text-white",
-                badge: "bg-amber-400/20 text-amber-400",
-              }
-            }}
+  variables: {
+    colorPrimary: "#C9A84C",
+    colorBackground: "#0D1420",
+    colorInputBackground: "#1A2540",
+    colorInputText: "#E8E0D0",
+    colorText: "#E8E0D0",
+    colorTextSecondary: "#94A3B8",
+    colorNeutral: "#E8E0D0",
+    colorShimmer: "#1A2540",
+    borderRadius: "12px",
+    fontFamily: "Arial, sans-serif",
+  },
+  elements: {
+    rootBox: "w-full",
+    card: "bg-transparent shadow-none border border-white/10 rounded-2xl",
+    navbar: "bg-slate-900/50 border-r border-white/10",
+    navbarButton: "text-slate-300 hover:text-white",
+    navbarButtonActive: "text-amber-400 bg-amber-400/10",
+    pageScrollBox: "bg-transparent",
+    formButtonPrimary: "bg-amber-400 text-slate-950 hover:bg-amber-300",
+    formFieldInput: "bg-slate-800 border-white/20 text-white",
+    formFieldLabel: "text-slate-200 font-medium",
+    formFieldLabelRow: "text-slate-200",
+    headerTitle: "text-white",
+    headerSubtitle: "text-slate-300",
+    profileSectionTitleText: "text-white font-semibold",
+    profileSectionTitle: "border-white/10",
+    accordionTriggerButton: "text-white hover:text-amber-400",
+    badge: "bg-amber-400/20 text-amber-400",
+    tableHead: "text-slate-300",
+    timezoneSelectTrigger: "bg-slate-800 border-white/20 text-white",
+    selectButton: "bg-slate-800 border-white/20 text-white",
+    selectOptionsContainer: "bg-slate-800 border-white/20",
+    menuButton: "text-white",
+    menuItem: "text-white hover:bg-white/10",
+    identityPreviewText: "text-white",
+    identityPreviewEditButton: "text-amber-400",
+    userPreviewMainIdentifier: "text-white",
+    userPreviewSecondaryIdentifier: "text-slate-300",
+    avatarBox: "border-2 border-amber-400/30",
+  }
+}}
           />
         </div>
       </div>
