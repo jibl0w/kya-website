@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   const body = await request.json();
   const {
     title, first_name, last_name, email, phone, dob,
-    nationality, address, id_type, id_number, bvn,
+    nationality, address, id_type, id_number, bvn, nin,
   } = body;
 
   if (!first_name || !last_name || !email || !dob || !nationality) {
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       .from("kyc_profiles")
       .update({
         title, first_name, last_name, email, phone, dob,
-        nationality, address, id_type, id_number, bvn,
+        nationality, address, id_type, id_number, bvn, nin,
         kyc_status: "pending",
       })
       .eq("user_id", userId);
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       .from("kyc_profiles")
       .insert({
         user_id: userId, title, first_name, last_name, email,
-        phone, dob, nationality, address, id_type, id_number, bvn,
+        phone, dob, nationality, address, id_type, id_number, bvn, nin,
         kyc_status: "pending",
       });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

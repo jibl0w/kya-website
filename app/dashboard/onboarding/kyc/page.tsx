@@ -20,6 +20,7 @@ export default function KYCPage() {
     const lastName = getValue("last_name");
     const dob = getValue("dob");
     const bvn = getValue("bvn");
+    const nin = getValue("nin");
 
     const response = await fetch("/api/kyc", {
       method: "POST",
@@ -40,6 +41,7 @@ export default function KYCPage() {
         is_joint_account: false,
         joint_full_name: getValue("joint_full_name"),
         bvn,
+        nin,
       }),
     });
 
@@ -61,6 +63,30 @@ export default function KYCPage() {
       } catch (err) {
         console.error("BVN verification error:", err);
       }
+    }
+
+    // Run NIN verification in background
+    if (nin && nin.length === 11) {
+      try {
+        await fetch("/api/verify/nin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nin, first_name: firstName, last_name: lastName, dob }),
+        });
+      } catch (err) {
+        console.error("NIN verification error:", err);
+      }
+    }
+
+    // Run AML screening in background
+    try {
+      await fetch("/api/verify/aml", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ first_name: firstName, last_name: lastName, account_type: "personal" }),
+      });
+    } catch (err) {
+      console.error("AML screening error:", err);
     }
 
     router.push("/dashboard/onboarding/kyc/success");
@@ -175,12 +201,17 @@ export default function KYCPage() {
 
           {/* Financial Information */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-            <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-5">Financial Information</h2>
+            <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-5">Financial & Identity Information</h2>
             <div className="flex flex-col gap-4">
               <div>
                 <label className={lbl}>BVN — Bank Verification Number <span className="text-amber-400">*</span></label>
                 <input id="bvn" className={inp} placeholder="Enter your 11-digit BVN" maxLength={11} />
                 <p className="text-xs text-slate-600 mt-1.5">Your BVN will be verified against your submitted details via a licensed verification provider.</p>
+              </div>
+              <div>
+                <label className={lbl}>NIN — National Identification Number <span className="text-amber-400">*</span></label>
+                <input id="nin" className={inp} placeholder="Enter your 11-digit NIN" maxLength={11} />
+                <p className="text-xs text-slate-600 mt-1.5">Your NIN will be verified against the NIMC database.</p>
               </div>
               <div>
                 <label className={lbl}>Source of Funds <span className="text-amber-400">*</span></label>
