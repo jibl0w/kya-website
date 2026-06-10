@@ -1,50 +1,58 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
+import SelfieCapture from "@/app/components/SelfieCapture";
 
-export default function KycSuccessPage() {
+export default function KYCSuccessPage() {
+  const [selfieComplete, setSelfieComplete] = useState(false);
+
+  function handleSelfieComplete(result: { livenessStatus: string; faceMatchStatus?: string }) {
+    console.log("Biometric result:", result);
+    setSelfieComplete(true);
+  }
+
   return (
-    <main className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-6">
-      <div className="max-w-lg w-full text-center">
+    <main className="min-h-screen bg-slate-950 text-white">
+      <header className="border-b border-white/10 px-8 py-5 flex items-center justify-between">
+        <Link href="/dashboard" className="text-sm text-slate-400 hover:text-white transition">← Dashboard</Link>
+        <span className="text-xl font-black">KY<span className="text-amber-400">A</span></span>
+      </header>
 
-        <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500/40 flex items-center justify-center mx-auto mb-6">
-          <span className="text-3xl">✓</span>
-        </div>
+      <div className="mx-auto max-w-lg px-8 py-12">
 
-        <h1 className="text-3xl font-black mb-3">Verification Submitted</h1>
-        <p className="text-slate-400 mb-8 leading-relaxed">
-          Your KYC verification form has been received successfully. A confirmation email has been sent to your registered email address.
-        </p>
-
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6 mb-8 text-left">
-          <p className="text-sm font-semibold text-amber-400 mb-3">Next Step — Upload Your Documents</p>
-          <p className="text-sm text-slate-400 leading-relaxed mb-4">
-            To complete your verification you need to upload the following documents:
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl">✓</span>
+          </div>
+          <h1 className="text-3xl font-black mb-2">KYC Submitted</h1>
+          <p className="text-slate-400 text-sm">
+            Your identity information has been submitted. Now complete your selfie verification to strengthen your profile.
           </p>
-          <ul className="flex flex-col gap-2">
-            {[
-              "NIN — National Identification Number",
-              "BVN Confirmation",
-              "Government-Issued ID",
-              "Proof of Address",
-              "Selfie Holding Your ID",
-            ].map(doc => (
-              <li key={doc} className="flex items-center gap-3 text-sm text-slate-300">
-                <span className="text-amber-400 text-xs flex-shrink-0">◆</span>
-                {doc}
-              </li>
-            ))}
-          </ul>
         </div>
 
-        <div className="flex flex-col gap-3">
-          <Link href="/dashboard/documents"
-            className="rounded-xl bg-amber-400 py-4 font-bold text-slate-950 hover:bg-amber-300 transition text-center block">
-            Upload Documents Now →
-          </Link>
-          <Link href="/dashboard"
-            className="rounded-xl border border-white/10 py-4 text-sm text-slate-400 hover:text-white transition text-center block">
-            Return to Dashboard
-          </Link>
-        </div>
+        {!selfieComplete ? (
+          <SelfieCapture
+            onComplete={handleSelfieComplete}
+            onSkip={() => setSelfieComplete(true)}
+          />
+        ) : (
+          <div className="text-center">
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 mb-6">
+              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-1">Verification Complete</p>
+              <p className="text-lg font-bold">Your KYC has been submitted successfully.</p>
+              <p className="text-sm text-slate-400 mt-2">Our compliance team will review your submission within 2 business days.</p>
+            </div>
+            <Link href="/dashboard/documents"
+              className="block w-full rounded-xl bg-amber-400 py-4 font-bold text-slate-950 hover:bg-amber-300 transition mb-3">
+              Upload Documents →
+            </Link>
+            <Link href="/dashboard"
+              className="block w-full rounded-xl border border-white/10 py-3 text-sm text-slate-400 hover:text-white transition">
+              Return to Dashboard
+            </Link>
+          </div>
+        )}
 
       </div>
     </main>
