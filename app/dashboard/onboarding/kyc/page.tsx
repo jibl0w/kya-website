@@ -21,6 +21,8 @@ export default function KYCPage() {
     const dob = getValue("dob");
     const bvn = getValue("bvn");
     const nin = getValue("nin");
+    const idType = getValue("id_type");
+    const idNumber = getValue("id_number");
 
     const response = await fetch("/api/kyc", {
       method: "POST",
@@ -35,8 +37,8 @@ export default function KYCPage() {
         dob,
         nationality: getValue("nationality"),
         address: getValue("address"),
-        id_type: getValue("id_type"),
-        id_number: getValue("id_number"),
+        id_type: idType,
+        id_number: idNumber,
         source_of_funds: getValue("source_of_funds"),
         is_joint_account: false,
         joint_full_name: getValue("joint_full_name"),
@@ -75,6 +77,19 @@ export default function KYCPage() {
         });
       } catch (err) {
         console.error("NIN verification error:", err);
+      }
+    }
+
+    // Run Government ID verification in background
+    if (idType && idNumber) {
+      try {
+        await fetch("/api/verify/govt-id", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idType, idNumber, first_name: firstName, last_name: lastName, dob }),
+        });
+      } catch (err) {
+        console.error("Govt ID verification error:", err);
       }
     }
 
@@ -195,11 +210,12 @@ export default function KYCPage() {
               <div>
                 <label className={lbl}>ID Number <span className="text-amber-400">*</span></label>
                 <input id="id_number" className={inp} placeholder="Enter your ID number" />
+                <p className="text-xs text-slate-600 mt-1.5">Your ID will be verified against the issuing authority database.</p>
               </div>
             </div>
           </div>
 
-          {/* Financial Information */}
+          {/* Financial & Identity Information */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
             <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-5">Financial & Identity Information</h2>
             <div className="flex flex-col gap-4">
