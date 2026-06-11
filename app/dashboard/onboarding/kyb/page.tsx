@@ -69,6 +69,17 @@ export default function KYBPage() {
         });
       } catch (err) { console.error("CAC verification error:", err); }
     }
+    // Run TIN verification in background
+    const tin = getValue("tin");
+    if (tin.trim()) {
+      try {
+        await fetch("/api/verify/tin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tin, company_name: companyName }),
+        });
+      } catch (err) { console.error("TIN verification error:", err); }
+    }
 
     // Run AML screening on director in background
     if (representativeName) {
