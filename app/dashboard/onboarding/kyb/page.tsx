@@ -18,7 +18,22 @@ export default function KYBPage() {
 
     const companyName = getValue("company_name");
     const cacNumber = getValue("cac_number");
+    const businessType = getValue("business_type");
+    const registeredAddress = getValue("registered_address");
+    const companyEmail = getValue("company_email");
     const representativeName = getValue("representative_name");
+    const representativeEmail = getValue("representative_email");
+
+    // Validate required fields
+    if (!companyName.trim()) { setError("Company name is required."); setSubmitting(false); return; }
+    if (!cacNumber.trim()) { setError("CAC registration number is required."); setSubmitting(false); return; }
+    if (!businessType) { setError("Please select a business type."); setSubmitting(false); return; }
+    if (!registeredAddress.trim()) { setError("Registered business address is required."); setSubmitting(false); return; }
+    if (!companyEmail.trim()) { setError("Company email address is required."); setSubmitting(false); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(companyEmail)) { setError("Please enter a valid company email address."); setSubmitting(false); return; }
+    if (!representativeName.trim()) { setError("Director or representative name is required."); setSubmitting(false); return; }
+    if (!representativeEmail.trim()) { setError("Director email address is required."); setSubmitting(false); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(representativeEmail)) { setError("Please enter a valid director email address."); setSubmitting(false); return; }
 
     const response = await fetch("/api/kyb", {
       method: "POST",
@@ -27,12 +42,12 @@ export default function KYBPage() {
         company_name: companyName,
         cac_number: cacNumber,
         tin: getValue("tin"),
-        business_type: getValue("business_type"),
-        registered_address: getValue("registered_address"),
-        company_email: getValue("company_email"),
+        business_type: businessType,
+        registered_address: registeredAddress,
+        company_email: companyEmail,
         representative_title: getValue("representative_title"),
         representative_name: representativeName,
-        representative_email: getValue("representative_email"),
+        representative_email: representativeEmail,
         representative_phone: getValue("representative_phone"),
       }),
     });
@@ -52,9 +67,7 @@ export default function KYBPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ rc_number: cacNumber, company_name: companyName }),
         });
-      } catch (err) {
-        console.error("CAC verification error:", err);
-      }
+      } catch (err) { console.error("CAC verification error:", err); }
     }
 
     // Run AML screening on director in background
@@ -68,9 +81,7 @@ export default function KYBPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ first_name: firstName, last_name: lastName, account_type: "business" }),
         });
-      } catch (err) {
-        console.error("AML screening error:", err);
-      }
+      } catch (err) { console.error("AML screening error:", err); }
     }
 
     router.push("/dashboard/onboarding/kyb/success");

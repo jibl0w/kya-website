@@ -18,11 +18,29 @@ export default function KYCPage() {
 
     const firstName = getValue("first_name");
     const lastName = getValue("last_name");
+    const email = getValue("email");
     const dob = getValue("dob");
-    const bvn = getValue("bvn");
-    const nin = getValue("nin");
+    const nationality = getValue("nationality");
+    const address = getValue("address");
     const idType = getValue("id_type");
     const idNumber = getValue("id_number");
+    const bvn = getValue("bvn");
+    const nin = getValue("nin");
+    const sourceOfFunds = getValue("source_of_funds");
+
+    // Validate required fields
+    if (!firstName.trim()) { setError("First name is required."); setSubmitting(false); return; }
+    if (!lastName.trim()) { setError("Last name is required."); setSubmitting(false); return; }
+    if (!email.trim()) { setError("Email address is required."); setSubmitting(false); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError("Please enter a valid email address."); setSubmitting(false); return; }
+    if (!dob) { setError("Date of birth is required."); setSubmitting(false); return; }
+    if (!nationality) { setError("Please select your nationality."); setSubmitting(false); return; }
+    if (!address.trim()) { setError("Residential address is required."); setSubmitting(false); return; }
+    if (!idType) { setError("Please select an ID type."); setSubmitting(false); return; }
+    if (!idNumber.trim()) { setError("ID number is required."); setSubmitting(false); return; }
+    if (!bvn.trim() || bvn.length !== 11) { setError("Please enter a valid 11-digit BVN."); setSubmitting(false); return; }
+    if (!nin.trim() || nin.length !== 11) { setError("Please enter a valid 11-digit NIN."); setSubmitting(false); return; }
+    if (!sourceOfFunds) { setError("Please select your source of funds."); setSubmitting(false); return; }
 
     const response = await fetch("/api/kyc", {
       method: "POST",
@@ -32,14 +50,14 @@ export default function KYCPage() {
         title: getValue("title"),
         first_name: firstName,
         last_name: lastName,
-        email: getValue("email"),
+        email,
         phone: getValue("phone"),
         dob,
-        nationality: getValue("nationality"),
-        address: getValue("address"),
+        nationality,
+        address,
         id_type: idType,
         id_number: idNumber,
-        source_of_funds: getValue("source_of_funds"),
+        source_of_funds: sourceOfFunds,
         is_joint_account: false,
         joint_full_name: getValue("joint_full_name"),
         bvn,
@@ -55,29 +73,25 @@ export default function KYCPage() {
     }
 
     // Run BVN verification in background
-    if (bvn && bvn.length === 11) {
+    if (bvn.length === 11) {
       try {
         await fetch("/api/verify/bvn", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ bvn, first_name: firstName, last_name: lastName, dob }),
         });
-      } catch (err) {
-        console.error("BVN verification error:", err);
-      }
+      } catch (err) { console.error("BVN verification error:", err); }
     }
 
     // Run NIN verification in background
-    if (nin && nin.length === 11) {
+    if (nin.length === 11) {
       try {
         await fetch("/api/verify/nin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ nin, first_name: firstName, last_name: lastName, dob }),
         });
-      } catch (err) {
-        console.error("NIN verification error:", err);
-      }
+      } catch (err) { console.error("NIN verification error:", err); }
     }
 
     // Run Government ID verification in background
@@ -88,9 +102,7 @@ export default function KYCPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ idType, idNumber, first_name: firstName, last_name: lastName, dob }),
         });
-      } catch (err) {
-        console.error("Govt ID verification error:", err);
-      }
+      } catch (err) { console.error("Govt ID verification error:", err); }
     }
 
     // Run AML screening in background
@@ -100,9 +112,7 @@ export default function KYCPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ first_name: firstName, last_name: lastName, account_type: "personal" }),
       });
-    } catch (err) {
-      console.error("AML screening error:", err);
-    }
+    } catch (err) { console.error("AML screening error:", err); }
 
     router.push("/dashboard/onboarding/kyc/success");
   }
