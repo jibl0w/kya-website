@@ -4,8 +4,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase-server";
 
-const ADMIN_IDS = process.env.ADMIN_USER_IDS?.split(",") || [];
-
 const STEP_NAMES: Record<number, string> = {
   1: "Customer Onboarding",
   2: "Supplier Selection",
@@ -28,8 +26,6 @@ export default async function DashboardPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
-  const isAdmin = ADMIN_IDS.includes(userId);
-
   const [
     { data: kycProfile },
     { data: kybProfile },
@@ -37,7 +33,7 @@ export default async function DashboardPage() {
     { data: transactions },
     { data: eddRequests },
   ] = await Promise.all([
-    supabaseServer.from("kyc_profiles").select("id, first_name, last_name").eq("user_id", userId).maybeSingle(),
+    supabaseServer.from("kyc_profiles").select("id, first_name,last_name").eq("user_id", userId).maybeSingle(),
     supabaseServer.from("kyb_profiles").select("id, company_name").eq("user_id", userId).maybeSingle(),
     supabaseServer.from("documents").select("document_type, status, verification_status, rejection_reason").eq("user_id", userId),
     supabaseServer.from("transactions").select("id, transaction_ref, supplier_name, supplier_category, total_value, currency, status, current_step, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
@@ -103,18 +99,6 @@ export default async function DashboardPage() {
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            {isAdmin && (
-              <div className="flex gap-2">
-                <Link href="/admin/documents"
-                  className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-400 hover:bg-blue-500/20 transition">
-                  Admin Docs
-                </Link>
-                <Link href="/admin/transactions"
-                  className="rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs font-medium text-purple-400 hover:bg-purple-500/20 transition">
-                  Admin Txns
-                </Link>
-              </div>
-            )}
             <Link href="/dashboard/account"
               className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white hover:border-white/20 transition">
               Settings
@@ -305,7 +289,7 @@ export default async function DashboardPage() {
 
           {txns.length === 0 ? (
             <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-2xl">↗</div>
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-2xl">○</div>
               <p className="font-semibold text-white">No transactions yet</p>
               <p className="mt-2 max-w-xs text-sm text-slate-500">
                 {allApproved
