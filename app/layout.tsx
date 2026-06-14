@@ -50,6 +50,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       signUpUrl="/sign-up"
       signInFallbackRedirectUrl="/dashboard"
       signUpFallbackRedirectUrl="/dashboard/onboarding"
+      allowedRedirectOrigins={[
+        "https://kya.com.ng",
+        "https://www.kya.com.ng",
+        "https://kya.ng",
+        "https://staff.kya.ng",
+        "https://dev.kya.com.ng",
+        "https://dev-staff.kya.com.ng",
+      ]}
     >
       <html lang="en">
         <head>
