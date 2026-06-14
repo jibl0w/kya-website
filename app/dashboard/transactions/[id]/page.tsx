@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 
 type DocStatus = "pending" | "approved" | "rejected" | "not_uploaded";
 
@@ -112,40 +111,23 @@ export default function TransactionDetailPage() {
 
     try {
       const existingDoc = getDoc(docKey);
-      const fileExt = file.name.split(".").pop();
-      const fileName = user.id + "/transactions/" + id + "/" + docKey + "_" + Date.now() + "." + fileExt;
 
-      // Upload directly from browser to Supabase storage
-      const supabaseDirect = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("docKey", docKey);
+      formData.append("transactionId", id);
+      formData.append("existingDocId", existingDoc?.id || "null");
+      formData.append("version", String((existingDoc?.version || 0) + 1));
 
-      const { error: storageError } = await supabaseDirect.storage
-        .from("kya-documents")
-        .upload(fileName, file, { upsert: true });
-
-      if (storageError) throw new Error(storageError.message);
-
-      const { data: urlData } = supabaseDirect.storage
-        .from("kya-documents")
-        .getPublicUrl(fileName);
-
-      // Save document record through API
       const res = await fetch("/api/transactions/upload-document", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          docKey,
-          transactionId: id,
-          fileUrl: urlData.publicUrl,
-          fileName: file.name,
-          existingDocId: existingDoc?.id || null,
-          version: (existingDoc?.version || 0) + 1,
-        }),
+        body: formData,
       });
 
-      if (!res.ok) throw new Error("Failed to save document record");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to upload document");
+      }
 
       await fetchData();
       setUploadSuccess(docKey);
@@ -209,7 +191,6 @@ export default function TransactionDetailPage() {
 
           <div className="lg:col-span-2 flex flex-col gap-6">
 
-            {/* Transaction details */}
             <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
               <div className="border-b border-white/10 bg-white/5 px-6 py-4">
                 <h2 className="font-semibold">Transaction Details</h2>
@@ -258,7 +239,6 @@ export default function TransactionDetailPage() {
               </div>
             </div>
 
-            {/* Trade Documents */}
             <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
               <div className="border-b border-white/10 bg-white/5 px-6 py-4 flex items-center justify-between">
                 <div>
@@ -367,7 +347,6 @@ export default function TransactionDetailPage() {
 
           </div>
 
-          {/* Steps tracker */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6 h-fit">
             <h3 className="font-semibold mb-1">Transaction Progress</h3>
             <p className="text-xs text-slate-500 mb-5">Step {transaction.current_step} of 13</p>

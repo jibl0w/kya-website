@@ -29,15 +29,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: storageError.message }, { status: 500 });
   }
 
-  const { data: urlData } = supabaseServer.storage
-    .from("kya-documents")
-    .getPublicUrl(fileName);
-
+  // Store the file PATH (not a public URL). Signed URLs are generated on-demand at display time.
   if (existingDocId && existingDocId !== "null") {
     await supabaseServer
       .from("transaction_documents")
       .update({
-        file_url: urlData.publicUrl,
+        file_url: fileName,
         file_name: file.name,
         status: "pending",
         rejection_reason: null,
@@ -52,7 +49,7 @@ export async function POST(req: Request) {
         transaction_id: transactionId,
         user_id: userId,
         document_type: docKey,
-        file_url: urlData.publicUrl,
+        file_url: fileName,
         file_name: file.name,
         status: "pending",
         version: 1,

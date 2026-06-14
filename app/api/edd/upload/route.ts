@@ -43,11 +43,8 @@ export async function POST(req: Request) {
 
     if (storageError) throw new Error(storageError.message);
 
-    const { data: urlData } = supabaseServer.storage
-      .from("kya-documents")
-      .getPublicUrl(fileName);
-
-    const fileUrl = urlData.publicUrl;
+   // Store the file PATH (not a public URL). Signed URLs are generated on-demand at display time.
+    const fileUrl = fileName;
 
     // Check if document already exists for this request and type
     const { data: existing } = await supabaseServer

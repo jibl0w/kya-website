@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
+import { signDocumentUrls } from "@/lib/signed-url";
 import EddClient from "./EddClient";
 
 export default async function EddPage() {
@@ -19,10 +20,13 @@ export default async function EddPage() {
     .eq("user_id", userId)
     .order("uploaded_at", { ascending: false });
 
+  // Convert stored file paths into time-limited signed URLs before sending to the browser
+  const signedEddDocuments = await signDocumentUrls(eddDocuments || []);
+
   return (
     <EddClient
       eddRequests={eddRequests || []}
-      eddDocuments={eddDocuments || []}
+      eddDocuments={signedEddDocuments}
     />
   );
 }

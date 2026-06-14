@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { signDocumentUrls } from "@/lib/signed-url";
 
 export async function GET(
   req: Request,
@@ -8,7 +9,7 @@ export async function GET(
 ) {
   const { id } = await params;
   const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  if (!userId) return NextResponse.json({ error: "Unauthorised" },{ status: 401 });
 
   const { data: transaction } = await supabaseServer
     .from("transactions")
@@ -31,9 +32,12 @@ export async function GET(
     .eq("transaction_id", id)
     .order("uploaded_at", { ascending: false });
 
+  // Convert stored file paths into time-limited signed URLs before sending to the browser
+  const signedDocs = await signDocumentUrls(tradeDocs || []);
+
   return NextResponse.json({
     transaction,
     steps: steps || [],
-    tradeDocs: tradeDocs || [],
+    tradeDocs: signedDocs,
   });
 }

@@ -4,7 +4,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 
 export async function POST(req: Request) {
   const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  if (!userId) return NextResponse.json({ error: "Unauthorised" },{ status: 401 });
 
   const formData = await req.formData();
   const file = formData.get("file") as File;
@@ -32,15 +32,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: storageError.message }, { status: 500 });
   }
 
-  const { data: urlData } = supabaseServer.storage
-    .from("kya-documents")
-    .getPublicUrl(fileName);
-
+  // Store the file PATH (not a public URL). Signed URLs are generated on-demand at display time.
   if (existingDocId && existingDocId !== "null") {
     await supabaseServer
       .from("documents")
       .update({
-        file_url: urlData.publicUrl,
+        file_url: fileName,
         file_name: file.name,
         verification_status: "pending",
         status: "pending",
@@ -57,7 +54,7 @@ export async function POST(req: Request) {
         document_type: docKey,
         entity_type: accountType === "personal" ? "kyc" : "kyb",
         account_type: accountType,
-        file_url: urlData.publicUrl,
+        file_url: fileName,
         file_name: file.name,
         verification_status: "pending",
         status: "pending",
@@ -65,5 +62,5 @@ export async function POST(req: Request) {
       });
   }
 
-  return NextResponse.json({ success: true, fileUrl: urlData.publicUrl });
+  return NextResponse.json({ success: true, filePath: fileName });
 }

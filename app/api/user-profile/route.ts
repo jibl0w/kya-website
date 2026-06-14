@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { signDocumentUrls } from "@/lib/signed-url";
 
 export async function GET() {
   const { userId } = await auth();
@@ -27,12 +28,15 @@ export async function GET() {
     .eq("user_id", userId)
     .order("uploaded_at", { ascending: false });
 
+  // Convert stored file paths into time-limited signed URLs before sending to the browser
+  const signedDocuments = await signDocumentUrls(documents || []);
+
   const accountType = kycProfile ? "personal" : kybProfile ? "business" : null;
 
   return NextResponse.json({
     accountType,
     kycProfile,
     kybProfile,
-    documents: documents || [],
+    documents: signedDocuments,
   });
 }

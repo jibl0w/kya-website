@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { signDocumentUrls } from "@/lib/signed-url";
 import AdminDocumentsClient from "./AdminDocumentsClient";
 
 const ADMIN_IDS = process.env.ADMIN_USER_IDS?.split(",") || [];
@@ -32,10 +33,14 @@ export default async function AdminDocumentsPage() {
     .from("kyb_profiles")
     .select("user_id, company_name, cac_number, tin, business_type, registered_address, company_email, representative_title, representative_name, representative_email, representative_phone");
 
+  // Convert stored file paths into time-limited signed URLs before sending to the browser
+  const signedDocuments = await signDocumentUrls(documents || []);
+  const signedTransactionDocuments = await signDocumentUrls(transactionDocuments || []);
+
   return (
     <AdminDocumentsClient
-      documents={documents || []}
-      transactionDocuments={transactionDocuments || []}
+      documents={signedDocuments}
+      transactionDocuments={signedTransactionDocuments}
       transactions={transactions || []}
       kycProfiles={kycProfiles || []}
       kybProfiles={kybProfiles || []}
