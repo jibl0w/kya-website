@@ -7,67 +7,73 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+const DISMISS_KEY = "kya-pwa-dismissed";
+
 export default function PWAInstallBanner() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showBanner, setShowBanner] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
-    // Check if already installed
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setIsInstalled(true);
-      return;
-    }
+    // 1. If already installed (launched from home screen), never show.
+    if (window.matchMedia("(display-mode: standalone)").matches) return;
+    // iOS standalone check (Safari uses a non-standard property)
+    if ((window.navigator as unknown as { standalone?: boolean }).standalone) return;
 
-    // Check if iOS
-    const ios = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+    // 2. If previously dismissed or installed on this device, never show again.
+    if (localStorage.getItem(DISMISS_KEY)) return;
+
+    // 3. Only show on mobile devices.
+    const ua = window.navigator.userAgent.toLowerCase();
+    const isMobile = /iphone|ipad|ipod|android/.test(ua);
+    if (!isMobile) return;
+
+    const ios = /iphone|ipad|ipod/.test(ua);
     setIsIOS(ios);
 
-    // Check if dismissed before
-    const dismissed = localStorage.getItem("kya-pwa-dismissed");
-    if (dismissed) return;
-
-    // Listen for install prompt on Android/Chrome
+    // Android / Chrome: capture the native install prompt
     const handler = (e: Event) => {
       e.preventDefault();
       setInstallPrompt(e as BeforeInstallPromptEvent);
       setShowBanner(true);
     };
-
     window.addEventListener("beforeinstallprompt", handler);
 
-    // Show iOS banner after 3 seconds
+    // If the app gets installed, remember it so we never prompt again.
+    const installedHandler = () => {
+      localStorage.setItem(DISMISS_KEY, "true");
+      setShowBanner(false);
+    };
+    window.addEventListener("appinstalled", installedHandler);
+
+    // iOS has no beforeinstallprompt — show manual instructions after a short delay
+    let iosTimer: ReturnType<typeof setTimeout> | undefined;
     if (ios) {
-      const timer = setTimeout(() => {
-        setShowBanner(true);
-      }, 3000);
-      return () => {
-        clearTimeout(timer);
-        window.removeEventListener("beforeinstallprompt", handler);
-      };
+      iosTimer = setTimeout(() => setShowBanner(true), 3000);
     }
 
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", installedHandler);
+      if (iosTimer) clearTimeout(iosTimer);
+    };
   }, []);
 
   async function handleInstall() {
-    if (installPrompt) {
-      await installPrompt.prompt();
-      const result = await installPrompt.userChoice;
-      if (result.outcome === "accepted") {
-        setShowBanner(false);
-        setIsInstalled(true);
-      }
-    }
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const result = await installPrompt.userChoice;
+    // Either way, don't prompt again on this device.
+    localStorage.setItem(DISMISS_KEY, "true");
+    setShowBanner(false);
   }
 
   function handleDismiss() {
+    localStorage.setItem(DISMISS_KEY, "true");
     setShowBanner(false);
-    localStorage.setItem("kya-pwa-dismissed", "true");
   }
 
-  if (!showBanner || isInstalled) return null;
+  if (!showBanner) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6">
@@ -81,14 +87,15 @@ export default function PWAInstallBanner() {
           <div className="flex-1">
             <p className="font-semibold text-white">Install KYA App</p>
             <p className="text-xs text-slate-400 mt-0.5">
-              Add KYA to your home screen for quick access to your trade dashboard
+              Add KYA to your home screen for quick access to your trade dashboard.
             </p>
           </div>
           <button
             onClick={handleDismiss}
-            className="text-slate-500 hover:text-white transition text-lg flex-shrink-0"
+            aria-label="Dismiss"
+            className="text-slate-500 hover:text-white transition text-xl leading-none flex-shrink-0"
           >
-            ✕
+            ×
           </button>
         </div>
 
@@ -97,9 +104,9 @@ export default function PWAInstallBanner() {
             <p className="text-xs text-slate-300 leading-relaxed">
               To install: tap the
               <span className="inline-block mx-1 rounded bg-white/10 px-1.5 py-0.5 text-white font-medium">
-                Share ↑
+                Share
               </span>
-              button at the bottom of Safari, then tap
+              button at the bottom of Safari, then
               <span className="inline-block mx-1 rounded bg-white/10 px-1.5 py-0.5 text-white font-medium">
                 Add to Home Screen
               </span>
