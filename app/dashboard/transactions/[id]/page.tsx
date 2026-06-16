@@ -339,7 +339,7 @@ export default function TransactionDetailPage() {
               </div>
             </div>
 
-           {transaction.notes && (
+            {transaction.notes && (
               <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
                 <h2 className="font-semibold mb-3">Notes</h2>
                 <p className="text-sm text-slate-400">{transaction.notes}</p>
@@ -352,9 +352,6 @@ export default function TransactionDetailPage() {
               defaultCurrency={transaction.currency}
               totalValue={transaction.total_value}
             />
-
-          </div>
-            )}
 
           </div>
 
