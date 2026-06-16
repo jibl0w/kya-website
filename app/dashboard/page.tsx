@@ -85,6 +85,7 @@ export default async function DashboardPage() {
             <span className="text-xl font-black">KY<span className="text-amber-400">A</span></span>
             <nav className="hidden md:flex items-center gap-5">
               <Link href="/dashboard/documents" className="text-sm text-slate-400 hover:text-white transition">Documents</Link>
+              <Link href="/dashboard/wallet" className="text-sm text-slate-400 hover:text-white transition">Wallets</Link>
               <Link href="/dashboard/onboarding" className="text-sm text-slate-400 hover:text-white transition">Onboarding</Link>
               <Link href="/dashboard/suppliers" className="text-sm text-slate-400 hover:text-white transition">Suppliers</Link>
               {allApproved && (
@@ -360,18 +361,18 @@ export default async function DashboardPage() {
             </p>
           </Link>
 
+          <Link href="/dashboard/wallet"
+            className="rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-white/20">
+            <span className="text-2xl">💳</span>
+            <p className="mt-3 font-semibold text-white">Wallets</p>
+            <p className="mt-1 text-xs text-slate-500">View your Naira and USD balances</p>
+          </Link>
+
           <Link href="/dashboard/suppliers"
             className="rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-white/20">
             <span className="text-2xl">🏭</span>
             <p className="mt-3 font-semibold text-white">Supplier Marketplace</p>
             <p className="mt-1 text-xs text-slate-500">Browse KYA verified suppliers</p>
-          </Link>
-
-          <Link href="/dashboard/account"
-            className="rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-white/20">
-            <span className="text-2xl">⚙️</span>
-            <p className="mt-3 font-semibold text-white">Account Settings</p>
-            <p className="mt-1 text-xs text-slate-500">Password, email, phone, security</p>
           </Link>
         </div>
 
