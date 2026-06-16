@@ -8,12 +8,12 @@ export async function GET() {
 
   const { data: suppliers } = await supabaseServer
     .from("suppliers")
-    .select("id, supplier_name, trade_name, country, primary_category, currencies_accepted, bank_details_status, beneficiary_currency")
+    .select("id, supplier_name, trade_name, country, primary_category, currencies_accepted, usd_details_status, rmb_details_status")
     .eq("verification_status", "verified")
     .order("supplier_name", { ascending: true });
 
-  // Do NOT expose the supplier's actual beneficiary account number to the customer.
-  // Only whether details are on file, so the customer knows if payment can proceed.
+  // Never expose actual account numbers to the customer — only whether
+  // beneficiary details are on file, per currency.
   const safe = (suppliers || []).map((s) => ({
     id: s.id,
     supplier_name: s.supplier_name,
@@ -21,8 +21,8 @@ export async function GET() {
     country: s.country,
     primary_category: s.primary_category,
     currencies_accepted: s.currencies_accepted,
-    has_bank_details: s.bank_details_status === "provided" || s.bank_details_status === "locked",
-    beneficiary_currency: s.beneficiary_currency,
+    has_usd_details: s.usd_details_status === "provided" || s.usd_details_status === "locked",
+    has_rmb_details: s.rmb_details_status === "provided" || s.rmb_details_status === "locked",
   }));
 
   return NextResponse.json({ suppliers: safe });
