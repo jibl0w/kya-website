@@ -6,14 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import OTPConfirmation from "@/app/components/OTPConfirmation";
 
-const SUPPLIER_CATEGORIES = [
-  { value: "Electronics & Consumer Technology", label: "Electronics & Consumer Technology" },
-  { value: "Solar & Energy Infrastructure", label: "Solar & Energy Infrastructure" },
-  { value: "Industrial Equipment & Machinery", label: "Industrial Equipment & Machinery" },
-  { value: "Construction & Building Materials", label: "Construction & Building Materials" },
-  { value: "Textiles, Packaging & Manufacturing Inputs", label: "Textiles, Packaging & Manufacturing Inputs" },
-];
-
 const NIGERIAN_PORTS = [
   "Apapa Port, Lagos",
   "Tin Can Island Port, Lagos",
@@ -21,6 +13,17 @@ const NIGERIAN_PORTS = [
   "Calabar Port, Cross River",
   "Warri Port, Delta State",
 ];
+
+interface VerifiedSupplier {
+  id: string;
+  supplier_name: string;
+  trade_name: string | null;
+  country: string | null;
+  primary_category: string | null;
+  currencies_accepted: string[] | null;
+  has_bank_details: boolean;
+  beneficiary_currency: string | null;
+}
 
 function NewTransactionForm() {
   const { user, isLoaded } = useUser();
@@ -30,7 +33,11 @@ function NewTransactionForm() {
   const [error, setError] = useState<string | null>(null);
   const [showOTP, setShowOTP] = useState(false);
 
+  const [suppliers, setSuppliers] = useState<VerifiedSupplier[]>([]);
+  const [loadingSuppliers, setLoadingSuppliers] = useState(true);
+
   const [form, setForm] = useState({
+    supplierId: "",
     supplierName: "",
     supplierCategory: "",
     productDescription: "",
@@ -42,16 +49,42 @@ function NewTransactionForm() {
   });
 
   useEffect(() => {
-    const name = searchParams.get("supplierName");
-    const category = searchParams.get("category");
-    if (name || category) {
-      setForm(prev => ({
-        ...prev,
-        supplierName: name || prev.supplierName,
-        supplierCategory: category || prev.supplierCategory,
-      }));
+    fetchSuppliers();
+  }, []);
+
+  async function fetchSuppliers() {
+    try {
+      const res = await fetch("/api/suppliers/verified");
+      const data = await res.json();
+      setSuppliers(data.suppliers || []);
+    } catch (err) {
+      console.error("Suppliers fetch error:", err);
+    } finally {
+      setLoadingSuppliers(false);
     }
-  }, [searchParams]);
+  }
+
+  // Pre-select supplier if arriving from the marketplace with an id.
+  useEffect(() => {
+    const id = searchParams.get("supplierId");
+    if (id && suppliers.length > 0) {
+      const s = suppliers.find((x) => x.id === id);
+      if (s) selectSupplier(s.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, suppliers]);
+
+  const selectedSupplier = suppliers.find((s) => s.id === form.supplierId) || null;
+
+  function selectSupplier(id: string) {
+    const s = suppliers.find((x) => x.id === id);
+    setForm((prev) => ({
+      ...prev,
+      supplierId: id,
+      supplierName: s ? s.supplier_name : "",
+      supplierCategory: s?.primary_category || "",
+    }));
+  }
 
   const update = (field: string, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }));
@@ -59,7 +92,11 @@ function NewTransactionForm() {
   const totalValue = parseFloat(form.unitPrice || "0") * parseFloat(form.quantity || "0");
 
   function handleReview() {
-    if (!form.supplierName || !form.supplierCategory || !form.productDescription || !form.quantity || !form.unitPrice || !form.portOfDestination) {
+    if (!form.supplierId) {
+      setError("Please select a verified supplier.");
+      return;
+    }
+    if (!form.productDescription || !form.quantity || !form.unitPrice || !form.portOfDestination) {
       setError("Please complete all required fields.");
       return;
     }
@@ -78,6 +115,7 @@ function NewTransactionForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          supplierId: form.supplierId,
           supplierName: form.supplierName,
           supplierCategory: form.supplierCategory,
           productDescription: form.productDescription,
@@ -140,7 +178,7 @@ function NewTransactionForm() {
           <p className="text-xs font-medium uppercase tracking-widest text-amber-400 mb-1">Trade Platform</p>
           <h1 className="text-3xl font-black mb-2">New Trade Transaction</h1>
           <p className="text-slate-400 text-sm">
-            Complete the details below to initiate a new trade transaction. You will be asked to verify with a one-time code before submission.
+            Select a verified supplier and complete the details below. You will verify with a one-time code before submission.
           </p>
         </div>
 
@@ -148,25 +186,70 @@ function NewTransactionForm() {
 
           {/* Supplier Details */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-            <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-5">Supplier Details</h2>
+            <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-5">Supplier</h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className={lbl}>Supplier Name <span className="text-amber-400">*</span></label>
-                <input value={form.supplierName} onChange={e => update("supplierName", e.target.value)}
-                  className={inp} placeholder="e.g. Shenzhen TechCo Ltd" />
+                <label className={lbl}>Verified Supplier <span className="text-amber-400">*</span></label>
+                {loadingSuppliers ? (
+                  <p className="text-sm text-slate-500">Loading verified suppliers…</p>
+                ) : suppliers.length === 0 ? (
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+                    <p className="text-sm text-amber-300">No verified suppliers are available yet.</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      <Link href="/dashboard/suppliers" className="text-amber-400 hover:text-amber-300">Browse the supplier marketplace →</Link>
+                    </p>
+                  </div>
+                ) : (
+                  <select value={form.supplierId} onChange={e => selectSupplier(e.target.value)} className={sel}>
+                    <option value="">Select a verified supplier</option>
+                    {suppliers.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.supplier_name}{s.country ? " — " + s.country : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <p className="text-xs text-slate-600 mt-1.5">
-                  <Link href="/dashboard/suppliers" className="text-amber-400 hover:text-amber-300">Browse verified suppliers →</Link>
+                  Only KYA-verified suppliers can be selected. <Link href="/dashboard/suppliers" className="text-amber-400 hover:text-amber-300">Browse suppliers →</Link>
                 </p>
               </div>
-              <div>
-                <label className={lbl}>Supplier Category <span className="text-amber-400">*</span></label>
-                <select value={form.supplierCategory} onChange={e => update("supplierCategory", e.target.value)} className={sel}>
-                  <option value="">Select category</option>
-                  {SUPPLIER_CATEGORIES.map(c => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
+
+              {/* Selected supplier summary — read-only */}
+              {selectedSupplier && (
+                <div className="rounded-xl border border-white/10 bg-slate-900/50 p-4">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-slate-500">Supplier</p>
+                      <p className="text-white">{selectedSupplier.supplier_name}</p>
+                    </div>
+                    {selectedSupplier.country && (
+                      <div>
+                        <p className="text-xs text-slate-500">Country</p>
+                        <p className="text-white">{selectedSupplier.country}</p>
+                      </div>
+                    )}
+                    {selectedSupplier.primary_category && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-slate-500">Category</p>
+                        <p className="text-white">{selectedSupplier.primary_category}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bank-details status — never shows the account number */}
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    {selectedSupplier.has_bank_details ? (
+                      <p className="text-xs text-emerald-400">
+                        ✓ Beneficiary details on file. Payment can be processed once the trade reaches the payment stage.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-amber-400">
+                        ⚠ This supplier has not yet provided beneficiary details. You can create the transaction, but payment cannot proceed until they do.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -233,7 +316,7 @@ function NewTransactionForm() {
           {/* Security notice */}
           <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
             <p className="text-xs text-slate-400 leading-relaxed">
-              <span className="text-amber-400 font-semibold">🔐 Verification required.</span> After clicking Submit you will receive a 6-digit verification code at your registered email address. You must enter this code to confirm the transaction.
+              <span className="text-amber-400 font-semibold">Verification required.</span> After clicking Submit you will receive a 6-digit verification code at your registered email address. You must enter this code to confirm the transaction.
             </p>
           </div>
 

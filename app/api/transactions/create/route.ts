@@ -32,7 +32,6 @@ const STEP_NAMES = [
   "Transaction Completion",
 ];
 
-// Transaction monitoring rules
 const HIGH_VALUE_THRESHOLD = 50000;
 
 function assessTransactionRisk(totalValue: number, currency: string): {
@@ -67,7 +66,7 @@ export async function POST(req: Request) {
 
   const body = await req.json();
   const {
-    supplierName,
+    supplierId,
     supplierCategory,
     productDescription,
     quantity,
@@ -78,8 +77,21 @@ export async function POST(req: Request) {
     notes,
   } = body;
 
-  if (!supplierName || !supplierCategory || !productDescription || !quantity || !unitPrice || !portOfDestination) {
+  if (!supplierId || !supplierCategory || !productDescription || !quantity || !unitPrice || !portOfDestination) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  // Defence-in-depth: confirm the supplier exists AND is verified server-side.
+  // Never trust the client's claim that a supplier is verified.
+  const { data: verifiedSupplier } = await supabaseServer
+    .from("suppliers")
+    .select("id, supplier_name, verification_status")
+    .eq("id", supplierId)
+    .eq("verification_status", "verified")
+    .maybeSingle();
+
+  if (!verifiedSupplier) {
+    return NextResponse.json({ error: "Selected supplier is not a verified supplier." }, { status: 400 });
   }
 
   const transactionRef = generateRef();
@@ -90,7 +102,8 @@ export async function POST(req: Request) {
     .insert({
       user_id: userId,
       transaction_ref: transactionRef,
-      supplier_name: supplierName,
+      supplier_id: supplierId,
+      supplier_name: verifiedSupplier.supplier_name,
       supplier_category: supplierCategory,
       product_description: productDescription,
       quantity,
@@ -133,7 +146,7 @@ export async function POST(req: Request) {
         customerEmail,
         customerName,
         transactionRef,
-        supplierName,
+        supplierName: verifiedSupplier.supplier_name,
         totalValue,
         currency,
         transactionId: transaction.id,
@@ -143,19 +156,18 @@ export async function POST(req: Request) {
     await notifyAdminTransactionCreated({
       customerName,
       transactionRef,
-      supplierName,
+      supplierName: verifiedSupplier.supplier_name,
       totalValue,
       currency,
     });
 
-    // Send high value alert to admin
     if (riskAssessment.riskFlag) {
       const { Resend } = await import("resend");
       const resend = new Resend(process.env.RESEND_API_KEY);
       await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || "info@kya.com.ng",
         to: process.env.ADMIN_EMAIL || "",
-        subject: "⚠ KYA — Transaction Monitoring Alert: " + transactionRef,
+        subject: "KYA — Transaction Monitoring Alert: " + transactionRef,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#080C14;color:#E8E0D0;border-radius:12px;overflow:hidden;">
             <div style="background:linear-gradient(135deg,#1A2540,#0D1420);padding:36px 40px;border-bottom:2px solid #ef4444;">
@@ -164,17 +176,17 @@ export async function POST(req: Request) {
             </div>
             <div style="padding:40px;">
               <div style="background:#080C14;border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:20px;margin:0 0 24px;">
-                <p style="font-size:16px;font-weight:700;color:#ef4444;margin:0 0 8px;">⚠ High Value Transaction Flagged</p>
+                <p style="font-size:16px;font-weight:700;color:#ef4444;margin:0 0 8px;">High Value Transaction Flagged</p>
                 <p style="font-size:13px;color:#8A9AB5;margin:0;">${riskAssessment.riskFlagReason}</p>
               </div>
               <table width="100%" cellpadding="0" cellspacing="0" style="border-radius:8px;overflow:hidden;margin:0 0 24px;border:1px solid rgba(255,255,255,0.06);">
                 ${[
                   ["KYA Reference", transactionRef],
                   ["Customer", customerName],
-                  ["Supplier", supplierName],
+                  ["Supplier", verifiedSupplier.supplier_name],
                   ["Transaction Value", "$" + Number(totalValue).toLocaleString() + " " + currency],
                   ["Risk Flag", riskAssessment.riskFlagReason],
-                ].map(([k, v], i) => `
+                ].map(([k, v]) => `
                   <tr>
                     <td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:12px;color:#4A5568;width:160px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;background:#080C14;">${k}</td>
                     <td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:14px;color:#E8E0D0;background:#080C14;">${v}</td>
