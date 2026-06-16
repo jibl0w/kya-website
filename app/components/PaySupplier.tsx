@@ -5,7 +5,7 @@ import { useState } from "react";
 interface Props {
   transactionId: string;
   supplierName: string;
-  defaultCurrency: string;   // transaction's agreed settlement currency
+  defaultCurrency: string;
   totalValue: number;
 }
 
@@ -18,21 +18,26 @@ interface CreatedInstruction {
   lcCheckPending: boolean;
 }
 
+type Phase = "form" | "created" | "otp" | "done";
+
 export default function PaySupplier({ transactionId, supplierName, defaultCurrency, totalValue }: Props) {
   const [open, setOpen] = useState(false);
+  const [phase, setPhase] = useState<Phase>("form");
   const [currency, setCurrency] = useState(defaultCurrency === "RMB" ? "RMB" : "USD");
   const [amount, setAmount] = useState(String(totalValue || ""));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState<CreatedInstruction | null>(null);
 
+  const [instruction, setInstruction] = useState<CreatedInstruction | null>(null);
+  const [otp, setOtp] = useState("");
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [finalStatus, setFinalStatus] = useState<string | null>(null);
+
+  // --- Create the instruction (freeze + triple-mirror) ---
   async function handleCreate() {
     setError(null);
     const amt = parseFloat(amount);
-    if (!amt || amt <= 0) {
-      setError("Enter a valid amount.");
-      return;
-    }
+    if (!amt || amt <= 0) { setError("Enter a valid amount."); return; }
     setSubmitting(true);
     try {
       const res = await fetch("/api/payment-instructions/create", {
@@ -42,7 +47,8 @@ export default function PaySupplier({ transactionId, supplierName, defaultCurren
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create payment instruction.");
-      setCreated(data);
+      setInstruction(data);
+      setPhase("created");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create payment instruction.");
     } finally {
@@ -50,42 +56,162 @@ export default function PaySupplier({ transactionId, supplierName, defaultCurren
     }
   }
 
-  // After creation — show the frozen instruction summary (OTP step comes next).
-  if (created) {
+  // --- Send the OTP ---
+  async function handleSendOtp() {
+    if (!instruction) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/payment-instructions/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instructionId: instruction.instructionId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send code.");
+      setSentTo(data.sentTo);
+      setPhase("otp");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to send code.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // --- Verify OTP, then sign + transmit ---
+  async function handleVerifyAndSend() {
+    if (!instruction) return;
+    setError(null);
+    if (otp.length !== 6) { setError("Enter the 6-digit code."); return; }
+    setSubmitting(true);
+    try {
+      const vRes = await fetch("/api/payment-instructions/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instructionId: instruction.instructionId, otpCode: otp }),
+      });
+      const vData = await vRes.json();
+      if (!vRes.ok) throw new Error(vData.error || "Invalid code.");
+
+      // Authorised — now sign + transmit.
+      const sRes = await fetch("/api/payment-instructions/sign-transmit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instructionId: instruction.instructionId }),
+      });
+      const sData = await sRes.json();
+      if (!sRes.ok) throw new Error(sData.error || "Failed to send instruction.");
+
+      setFinalStatus(sData.status);
+      setPhase("done");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Authorisation failed.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // ---------- DONE ----------
+  if (phase === "done") {
     return (
       <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6">
-        <h2 className="font-semibold mb-1">Payment Instruction Created</h2>
+        <h2 className="font-semibold mb-1">Payment Instruction Sent</h2>
         <p className="text-xs text-slate-500 mb-4">
-          Instruction <span className="font-mono text-amber-400">{created.instructionId}</span> — awaiting authorisation.
+          Instruction <span className="font-mono text-amber-400">{instruction?.instructionId}</span> — status: {finalStatus}.
         </p>
         <div className="rounded-xl border border-white/10 bg-slate-900/50 divide-y divide-white/5">
           <div className="flex justify-between px-4 py-3">
             <span className="text-xs text-slate-500">Supplier</span>
-            <span className="text-sm text-white">{created.beneficiary.name}</span>
-          </div>
-          <div className="flex justify-between px-4 py-3">
-            <span className="text-xs text-slate-500">Beneficiary Bank</span>
-            <span className="text-sm text-white">{created.beneficiary.bank}</span>
+            <span className="text-sm text-white">{instruction?.beneficiary.name}</span>
           </div>
           <div className="flex justify-between px-4 py-3">
             <span className="text-xs text-slate-500">Amount</span>
-            <span className="text-sm font-bold text-amber-400">{created.amount.toLocaleString()} {created.currency}</span>
+            <span className="text-sm font-bold text-amber-400">{instruction?.amount.toLocaleString()} {instruction?.currency}</span>
           </div>
         </div>
-        <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-          <p className="text-xs text-amber-300">
-            Next: authorise this payment with a one-time code (coming in the next build step). The beneficiary is locked to the verified supplier and cannot be changed.
+        <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+          <p className="text-xs text-emerald-300">
+            Signed and transmitted to ROECNY. KYA does not move funds — ROECNY executes the payment under your authorisation, restricted to the verified supplier. You will be notified when payment is confirmed.
           </p>
         </div>
-        {created.lcCheckPending && (
-          <p className="mt-3 text-xs text-slate-600">
-            Note: LC beneficiary cross-check will apply once LC capture is enabled.
-          </p>
+      </div>
+    );
+  }
+
+  // ---------- OTP ENTRY ----------
+  if (phase === "otp") {
+    return (
+      <div className="rounded-2xl border border-amber-500/20 bg-white/5 p-6">
+        <h2 className="font-semibold mb-1">Authorise Payment</h2>
+        <p className="text-xs text-slate-500 mb-4">
+          {sentTo ? "Code sent to " + sentTo + "." : "Enter the code sent to your email."} You are authorising{" "}
+          <span className="text-amber-400 font-medium">{instruction?.amount.toLocaleString()} {instruction?.currency}</span> to {instruction?.beneficiary.name}.
+        </p>
+        <input
+          value={otp}
+          onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+          inputMode="numeric"
+          placeholder="------"
+          className="w-full text-center text-2xl font-mono tracking-[0.4em] rounded-xl bg-slate-950 border-2 border-white/20 focus:border-amber-400 text-white py-4 mb-4 outline-none"
+        />
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+            <p className="text-sm text-red-400">{error}</p>
+          </div>
+        )}
+        <div className="flex gap-3">
+          <button onClick={handleSendOtp} disabled={submitting}
+            className="rounded-xl border border-white/10 px-4 py-3 text-sm text-slate-400 hover:text-white transition disabled:opacity-50">
+            Resend
+          </button>
+          <button onClick={handleVerifyAndSend} disabled={submitting || otp.length !== 6}
+            className="flex-1 rounded-xl bg-amber-400 py-3 text-sm font-bold text-slate-950 hover:bg-amber-300 transition disabled:opacity-50">
+            {submitting ? "Authorising..." : "Authorise & Send Payment"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- CREATED (ready to authorise) ----------
+  if (phase === "created" && instruction) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+        <h2 className="font-semibold mb-1">Payment Instruction Ready</h2>
+        <p className="text-xs text-slate-500 mb-4">
+          Instruction <span className="font-mono text-amber-400">{instruction.instructionId}</span> — beneficiary locked.
+        </p>
+        <div className="rounded-xl border border-white/10 bg-slate-900/50 divide-y divide-white/5 mb-4">
+          <div className="flex justify-between px-4 py-3">
+            <span className="text-xs text-slate-500">Supplier</span>
+            <span className="text-sm text-white">{instruction.beneficiary.name}</span>
+          </div>
+          <div className="flex justify-between px-4 py-3">
+            <span className="text-xs text-slate-500">Beneficiary Bank</span>
+            <span className="text-sm text-white">{instruction.beneficiary.bank}</span>
+          </div>
+          <div className="flex justify-between px-4 py-3">
+            <span className="text-xs text-slate-500">Amount</span>
+            <span className="text-sm font-bold text-amber-400">{instruction.amount.toLocaleString()} {instruction.currency}</span>
+          </div>
+        </div>
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+            <p className="text-sm text-red-400">{error}</p>
+          </div>
+        )}
+        <button onClick={handleSendOtp} disabled={submitting}
+          className="w-full rounded-xl bg-amber-400 py-3 text-sm font-bold text-slate-950 hover:bg-amber-300 transition disabled:opacity-50">
+          {submitting ? "Sending code..." : "Authorise with One-Time Code →"}
+        </button>
+        {instruction.lcCheckPending && (
+          <p className="mt-3 text-xs text-slate-600">LC beneficiary cross-check applies once LC capture is enabled.</p>
         )}
       </div>
     );
   }
 
+  // ---------- INITIAL FORM ----------
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
       <div className="border-b border-white/10 bg-white/5 px-6 py-4 flex items-center justify-between">
@@ -105,7 +231,7 @@ export default function PaySupplier({ transactionId, supplierName, defaultCurren
         <div className="p-6 flex flex-col gap-4">
           <div className="rounded-xl border border-white/10 bg-amber-500/5 px-4 py-3">
             <p className="text-xs text-slate-400 leading-relaxed">
-              The payment goes only to the verified supplier's account for the chosen settlement currency. You cannot change the beneficiary. KYA does not hold or move your funds — your bank executes the payment under your authorisation.
+              Payment goes only to the verified supplier's account for the chosen settlement currency. You cannot change the beneficiary. KYA does not hold or move your funds.
             </p>
           </div>
 
@@ -138,7 +264,7 @@ export default function PaySupplier({ transactionId, supplierName, defaultCurren
             </button>
             <button onClick={handleCreate} disabled={submitting}
               className="flex-1 rounded-xl bg-amber-400 py-3 text-sm font-bold text-slate-950 hover:bg-amber-300 transition disabled:opacity-50">
-              {submitting ? "Creating Instruction..." : "Create Payment Instruction"}
+              {submitting ? "Creating..." : "Create Payment Instruction"}
             </button>
           </div>
         </div>

@@ -148,3 +148,20 @@ export function computeInstructionHash(parts: {
   ].join("::");
   return crypto.createHash("sha256").update(material).digest("hex");
 }
+/**
+ * Sign the instruction payload. MOCK signing for now — uses an HMAC with a
+ * local secret to stand in for real asymmetric signing. At ROECNY integration,
+ * replace with real private-key signing; ROECNY verifies with KYA's public key.
+ *
+ * The signature covers the instruction hash + attestation, so it proves both
+ * authenticity (from KYA) and that the customer authorised this exact instruction.
+ */
+export function signInstruction(parts: {
+  instructionId: string;
+  instructionHash: string;
+  otpAttestationHash: string;
+}): string {
+  const secret = process.env.KYA_SIGNING_SECRET || "dev-mock-signing-secret";
+  const material = [parts.instructionId, parts.instructionHash, parts.otpAttestationHash].join("::");
+  return crypto.createHmac("sha256", secret).update(material).digest("hex");
+}
