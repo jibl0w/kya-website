@@ -102,7 +102,7 @@ function para(text: string) {
   return `<p style="font-size:14px;color:#8A9AB5;line-height:1.75;margin:0 0 16px;">${text}</p>`;
 }
 
-// ─── CUSTOMER NOTIFICATIONS ───────────────────────────────────────────────────
+// --- CUSTOMER NOTIFICATIONS ---
 
 export async function notifyCustomerWelcome(params: {
   customerEmail: string;
@@ -412,7 +412,41 @@ export async function notifyCustomerTransactionComplete(params: {
   });
 }
 
-// ─── ADMIN NOTIFICATIONS ──────────────────────────────────────────────────────
+// --- SUPPLIER NOTIFICATIONS ---
+
+export async function notifySupplierTransactionCreated(params: {
+  supplierEmail: string;
+  supplierName: string;
+  customerName: string;
+  customerEmail: string;
+  transactionRef: string;
+  productDescription: string;
+  quantity: string;
+  totalValue: number;
+  currency: string;
+  portOfDestination: string;
+}) {
+  await resend.emails.send({
+    from: FROM, to: params.supplierEmail,
+    subject: "KYA — New Order Enquiry: " + params.transactionRef,
+    html: emailTemplate(`
+      ${greeting(params.supplierName)}
+      ${para("A verified KYA customer has initiated a trade order naming your company as the supplier. The order details are below. Please liaise directly with the customer using the contact details provided.")}
+      ${table(
+        row("KYA Reference", params.transactionRef, true) +
+        row("Customer", params.customerName) +
+        row("Customer Email", params.customerEmail) +
+        row("Product", params.productDescription) +
+        row("Quantity", params.quantity) +
+        row("Order Value", "$" + Number(params.totalValue).toLocaleString() + " " + params.currency) +
+        row("Destination", params.portOfDestination)
+      )}
+      ${para("This order was placed through the KYA trade platform. KYA Digital Services does not hold or move funds — all settlement is handled by licensed banking partners under the customer's authorisation.")}
+    `),
+  });
+}
+
+// --- ADMIN NOTIFICATIONS ---
 
 export async function notifyAdminDocumentUploaded(params: {
   customerName: string;

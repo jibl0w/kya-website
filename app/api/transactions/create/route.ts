@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 import {
   notifyAdminTransactionCreated,
   notifyCustomerTransactionCreated,
+  notifySupplierTransactionCreated,
 } from "@/lib/notifications";
 
 function generateRef(): string {
@@ -82,10 +83,9 @@ export async function POST(req: Request) {
   }
 
   // Defence-in-depth: confirm the supplier exists AND is verified server-side.
-  // Never trust the client's claim that a supplier is verified.
   const { data: verifiedSupplier } = await supabaseServer
     .from("suppliers")
-    .select("id, supplier_name, verification_status")
+    .select("id, supplier_name, contact_email")
     .eq("id", supplierId)
     .eq("verification_status", "verified")
     .maybeSingle();
@@ -132,6 +132,8 @@ export async function POST(req: Request) {
 
   await supabaseServer.from("transaction_steps").insert(steps);
 
+  // Notifications: customer, KYA (admin), and supplier. Best-effort — never
+  // block transaction creation if an email fails.
   try {
     const clerkRes = await fetch(
       "https://api.clerk.com/v1/users/" + userId,
@@ -141,6 +143,7 @@ export async function POST(req: Request) {
     const customerEmail = clerkUser.email_addresses?.[0]?.email_address;
     const customerName = ((clerkUser.first_name || "") + " " + (clerkUser.last_name || "")).trim() || "Customer";
 
+    // Customer confirmation
     if (customerEmail) {
       await notifyCustomerTransactionCreated({
         customerEmail,
@@ -153,6 +156,7 @@ export async function POST(req: Request) {
       });
     }
 
+    // KYA (admin) notification
     await notifyAdminTransactionCreated({
       customerName,
       transactionRef,
@@ -161,6 +165,25 @@ export async function POST(req: Request) {
       currency,
     });
 
+    // Supplier notification — only if the supplier has a contact email on file.
+    if (verifiedSupplier.contact_email) {
+      await notifySupplierTransactionCreated({
+        supplierEmail: verifiedSupplier.contact_email,
+        supplierName: verifiedSupplier.supplier_name,
+        customerName,
+        customerEmail: customerEmail || "",
+        transactionRef,
+        productDescription,
+        quantity: String(quantity),
+        totalValue,
+        currency,
+        portOfDestination,
+      });
+    } else {
+      console.warn("Supplier has no contact_email; supplier notification skipped:", verifiedSupplier.id);
+    }
+
+    // High-value alert to admin
     if (riskAssessment.riskFlag) {
       const { Resend } = await import("resend");
       const resend = new Resend(process.env.RESEND_API_KEY);
