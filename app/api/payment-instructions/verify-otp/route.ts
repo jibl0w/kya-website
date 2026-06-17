@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   // Load the instruction; confirm ownership and state.
   const { data: instruction } = await supabaseServer
     .from("payment_instructions")
-    .select("id, instruction_id, user_id, status, instruction_hash, expires_at" transaction_id)
+    .select("id, instruction_id, user_id, status, instruction_hash, expires_at, transaction_id")
     .eq("instruction_id", instructionId)
     .maybeSingle();
 
