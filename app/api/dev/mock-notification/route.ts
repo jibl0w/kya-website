@@ -1,12 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase-server";
 import crypto from "crypto";
 import { computeNotificationPayloadHash } from "@/lib/payment-instruction";
 
 // DEV-ONLY: simulates a bank/AD sending an authenticated notification to KYA.
 // Generates a correctly-signed notification (mock secret) and ingests it,
-// exactly as the real party would. Guarded so it cannot run in production.
+// exactly as the real party would.
+//
+// SAFE-BY-DEFAULT: blocked unless ENABLE_MOCK_NOTIFICATIONS === "true" (a
+// server-side env var set only on dev/preview). Production never sets it, so
+// this endpoint is always blocked there — regardless of any NEXT_PUBLIC baking.
 
 function signNotification(parts: {
   fromParty: string;
@@ -30,12 +33,12 @@ function signNotification(parts: {
 }
 
 export async function POST(req: Request) {
-  // Block in production environments.
-  if (process.env.NEXT_PUBLIC_APP_ENV === "production") {
-    return NextResponse.json({ error: "Disabled in production." }, { status: 403 });
+  // Safe-by-default gate: only runs where explicitly enabled.
+  if (process.env.ENABLE_MOCK_NOTIFICATIONS !== "true") {
+    return NextResponse.json({ error: "Disabled." }, { status: 403 });
   }
 
-  // Require a logged-in user (so randoms can't trigger mock notifications on dev).
+  // Require a logged-in user (so randoms can't trigger mock notifications).
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
@@ -45,7 +48,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing notificationType or transactionId." }, { status: 400 });
   }
 
-  // Determine the from-party for this notification type.
   const partyForType: Record<string, string> = {
     ad_fx_authorised: "ad",
     source_payment_executed: "source_mfb",
