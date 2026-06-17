@@ -19,7 +19,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing file or instruction." }, { status: 400 });
   }
 
-  // Load + verify ownership.
   const { data: instruction } = await supabaseServer
     .from("payment_instructions")
     .select("id, instruction_id, user_id, status, transaction_id, leg")
@@ -51,10 +50,11 @@ export async function POST(req: Request) {
   await recordLedgerEvent({
     transactionId: instruction.transaction_id,
     instructionId,
-    leg: "instruction.leg",
+    leg: instruction.leg,
     eventType: "customer_confirmed",
     evidenceRef: path,
   });
+
   // --- Reconciliation: do we now have BOTH sources? ---
   const { data: confirmations } = await supabaseServer
     .from("payment_confirmations")
@@ -66,7 +66,6 @@ export async function POST(req: Request) {
 
   let reconciled = false;
   if (hasBank && hasCustomer) {
-    // Both present → mark matched and settle.
     await supabaseServer
       .from("payment_confirmations")
       .update({ reconciliation_status: "matched" })
@@ -77,28 +76,26 @@ export async function POST(req: Request) {
       .update({ status: "reconciled" })
       .eq("id", instruction.id);
 
-    // Then settle (record-keeping state — no money movement by KYA).
     await supabaseServer
       .from("payment_instructions")
       .update({ status: "settled" })
       .eq("id", instruction.id);
 
-    reconciled = true;
-
     await recordLedgerEvent({
       transactionId: instruction.transaction_id,
       instructionId,
-      leg: "instruction.leg",
+      leg: instruction.leg,
       eventType: "reconciled",
     });
     await recordLedgerEvent({
       transactionId: instruction.transaction_id,
       instructionId,
-      leg: "instruction.leg",
+      leg: instruction.leg,
       eventType: "settled",
     });
+
+    reconciled = true;
   } else {
-    // Only customer upload so far → await bank notification.
     await supabaseServer
       .from("payment_instructions")
       .update({ status: "confirmation_pending" })
