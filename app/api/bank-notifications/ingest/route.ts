@@ -7,10 +7,9 @@ import {
 import { recordLedgerEvent } from "@/lib/settlement-ledger";
 
 // Inbound endpoint for authenticated notifications from Source / AD / ROECNY.
-// NOTE: this is a machine-to-machine endpoint (no Clerk user). Authentication
-// is via the signature on the notification, NOT a logged-in session. Banks/AD
-// never log into KYA. For now signature verification is mock (shared secret);
-// real public-key verification slots in at integration.
+// Machine-to-machine: authentication is via signature, NOT a logged-in session.
+// Banks/AD never log into KYA. Signature verification is mock (shared secret)
+// for now; real public-key verification slots in at integration.
 
 const VALID_TYPES = [
   "ad_fx_authorised",
@@ -32,7 +31,6 @@ export async function POST(req: Request) {
 
   const { fromParty, notificationType, transactionId, instructionId, payload, signature } = body;
 
-  // --- Validate shape ---
   if (!fromParty || !notificationType || !transactionId || !signature) {
     return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
   }
@@ -80,12 +78,10 @@ export async function POST(req: Request) {
     );
   }
 
-  // --- Act on the notification (ROECNY leg for now) ---
   let actioned = false;
 
+  // ---- ROECNY: supplier paid (ROECNY leg confirmation) ----
   if (notificationType === "roecny_supplier_paid" && instructionId) {
-    // ROECNY confirms it paid the supplier. Record a bank confirmation and
-    // move the instruction toward reconciliation.
     const { data: instruction } = await supabaseServer
       .from("payment_instructions")
       .select("id, instruction_id, status")
@@ -93,7 +89,6 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (instruction && ["transmitted", "acknowledged", "executed", "confirmation_pending"].includes(instruction.status)) {
-      // Insert the bank-notification confirmation (one of the two reconciliation sources).
       await supabaseServer.from("payment_confirmations").insert({
         instruction_id: instructionId,
         source: "bank_notification",
@@ -103,26 +98,144 @@ export async function POST(req: Request) {
         reconciliation_status: "pending",
       });
 
-      // Advance instruction: executed -> confirmation_pending (awaiting reconciliation).
       await supabaseServer
         .from("payment_instructions")
         .update({ status: "confirmation_pending" })
         .eq("id", instruction.id);
 
-      actioned = true;
-    }
-  }
-
-  await recordLedgerEvent({
+      await recordLedgerEvent({
         transactionId,
         instructionId,
         leg: "roecny_usd",
         eventType: "roecny_confirmed",
         evidenceRef: payload?.reference || notif.id,
       });
-  // (Other ROECNY-relevant types like roecny_usd_received will gate the
-  //  customer's ability to initiate the supplier payment — wired with the
-  //  stage-gating later.)
+
+      actioned = true;
+    }
+  }
+
+  // ---- AD: FX authorised (freezes the Source-leg nominated account) ----
+  if (notificationType === "ad_fx_authorised") {
+    const p = payload || {};
+    if (!p.nominatedAccount || !p.nominatedName) {
+      return NextResponse.json(
+        { received: true, actioned: false, reason: "ad_fx_authorised missing nominated account details." },
+        { status: 202 }
+      );
+    }
+
+    await supabaseServer
+      .from("transactions")
+      .update({
+        ad_nominated_name: p.nominatedName,
+        ad_nominated_account: p.nominatedAccount,
+        ad_nominated_bank: p.nominatedBank || null,
+        ad_fx_authorised_at: new Date().toISOString(),
+        ad_fx_amount_ngn: p.amountNgn || null,
+        ad_fx_reference: p.fxReference || null,
+        source_leg_status: "fx_authorised",
+      })
+      .eq("id", transactionId);
+
+    await recordLedgerEvent({
+      transactionId,
+      leg: "source_ngn",
+      eventType: "ad_fx_authorised",
+      evidenceRef: p.fxReference || null,
+      detail: { nominatedBank: p.nominatedBank || null },
+    });
+
+    actioned = true;
+  }
+
+  // ---- Source MFB: NGN payment executed (Source leg confirmation) ----
+  if (notificationType === "source_payment_executed" && instructionId) {
+    const { data: instruction } = await supabaseServer
+      .from("payment_instructions")
+      .select("id, instruction_id, status")
+      .eq("instruction_id", instructionId)
+      .maybeSingle();
+
+    if (instruction && ["transmitted", "acknowledged", "executed", "confirmation_pending"].includes(instruction.status)) {
+      await supabaseServer.from("payment_confirmations").insert({
+        instruction_id: instructionId,
+        source: "bank_notification",
+        bank: "source_mfb",
+        confirmation_reference: payload?.reference || null,
+        signature_verified: true,
+        reconciliation_status: "pending",
+      });
+
+      await supabaseServer
+        .from("payment_instructions")
+        .update({ status: "confirmation_pending" })
+        .eq("id", instruction.id);
+
+      await supabaseServer
+        .from("transactions")
+        .update({ source_leg_status: "payment_executed" })
+        .eq("id", transactionId);
+
+      await recordLedgerEvent({
+        transactionId,
+        instructionId,
+        leg: "source_ngn",
+        eventType: "source_payment_executed",
+        evidenceRef: payload?.reference || notif.id,
+      });
+
+      actioned = true;
+    }
+  }
+
+  // ---- AD: payment received ----
+  if (notificationType === "ad_payment_received") {
+    await supabaseServer
+      .from("transactions")
+      .update({ source_leg_status: "ad_confirmed" })
+      .eq("id", transactionId);
+
+    await recordLedgerEvent({
+      transactionId,
+      leg: "source_ngn",
+      eventType: "ad_payment_received",
+      evidenceRef: payload?.reference || notif.id,
+    });
+    actioned = true;
+  }
+
+  // ---- AD: FX released to ROECNY ----
+  if (notificationType === "ad_fx_released_to_roecny") {
+    await supabaseServer
+      .from("transactions")
+      .update({ source_leg_status: "fx_released" })
+      .eq("id", transactionId);
+
+    await recordLedgerEvent({
+      transactionId,
+      leg: "source_ngn",
+      eventType: "ad_fx_released_to_roecny",
+      evidenceRef: payload?.reference || notif.id,
+    });
+    actioned = true;
+  }
+
+  // ---- ROECNY: USD received (gates the ROECNY/supplier leg) ----
+  if (notificationType === "roecny_usd_received") {
+    await supabaseServer
+      .from("transactions")
+      .update({ source_leg_status: "usd_received" })
+      .eq("id", transactionId);
+
+    await recordLedgerEvent({
+      transactionId,
+      leg: "source_ngn",
+      eventType: "roecny_usd_received",
+      evidenceRef: payload?.reference || notif.id,
+    });
+    actioned = true;
+  }
 
   return NextResponse.json({ received: true, actioned, notificationId: notif.id });
 }

@@ -16,7 +16,12 @@ export type LedgerEventType =
   | "reconciled"
   | "settled"
   | "rejected"
-  | "failed";
+  | "failed"
+  | "ad_fx_authorised"
+  | "source_payment_executed"
+  | "ad_payment_received"
+  | "ad_fx_released_to_roecny"
+  | "roecny_usd_received";
 
 export async function recordLedgerEvent(params: {
   transactionId: string;
