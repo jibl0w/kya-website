@@ -1,7 +1,7 @@
-import { recordLedgerEvent } from "@/lib/settlement-ledger";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { recordLedgerEvent } from "@/lib/settlement-ledger";
 import crypto from "crypto";
 
 export async function POST(req: Request) {
@@ -71,12 +71,14 @@ export async function POST(req: Request) {
 
   if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
 
-  return NextResponse.json({ success: true, verified: true, status: "otp_verified" });
-
-await recordLedgerEvent({
+  // Record the ledger event (instruction is guaranteed non-null here).
+  await recordLedgerEvent({
     transactionId: instruction.transaction_id,
     instructionId: instruction.instruction_id,
     leg: "roecny_usd",
     eventType: "otp_verified",
     evidenceRef: attestation.slice(0, 16),
-  });}
+  });
+
+  return NextResponse.json({ success: true, verified: true, status: "otp_verified" });
+}
