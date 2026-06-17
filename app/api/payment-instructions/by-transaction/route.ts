@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   // Most recent non-cancelled instruction for this transaction's ROECNY leg.
   const { data: instructions } = await supabaseServer
     .from("payment_instructions")
-    .select("instruction_id, leg, status, amount, currency, beneficiary_name, beneficiary_bank, created_at")
+    .select("instruction_id, leg, status, amount, currency, beneficiary_name, beneficiary_bank, beneficiary_account, created_at")
     .eq("transaction_id", transactionId)
     .eq("user_id", userId)
     .eq("leg", "roecny_usd")
@@ -41,6 +41,9 @@ export async function POST(req: Request) {
       currency: active.currency,
       beneficiaryName: active.beneficiary_name,
       beneficiaryBank: active.beneficiary_bank,
+      beneficiaryAccountMasked: active.beneficiary_account
+        ? "••••" + String(active.beneficiary_account).slice(-4)
+        : null,
       hasBankConfirmation: hasBank,
       hasCustomerConfirmation: hasCustomer,
     },

@@ -142,9 +142,10 @@ export async function POST(req: Request) {
     success: true,
     instructionId: instruction.instruction_id,
     id: instruction.id,
-    beneficiary: {
+   beneficiary: {
       name: beneficiary.name,
       bank: beneficiary.bank,
+      accountMasked: "••••" + String(beneficiary.account).slice(-4),
       currency: beneficiary.currency,
     },
     amount,

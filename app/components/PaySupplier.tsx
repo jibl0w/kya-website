@@ -16,6 +16,7 @@ interface InstructionState {
   currency: string;
   beneficiaryName: string;
   beneficiaryBank: string;
+  beneficiaryAccountMasked: string | null;
   hasBankConfirmation: boolean;
   hasCustomerConfirmation: boolean;
 }
@@ -32,7 +33,7 @@ export default function PaySupplier({ transactionId, supplierName, defaultCurren
   const [error, setError] = useState<string | null>(null);
 
   // newly-created instruction (in-session, pre-authorisation)
-  const [created, setCreated] = useState<{ instructionId: string; beneficiary: { name: string; bank: string }; amount: number; currency: string } | null>(null);
+  const [created, setCreated] = useState<{ instructionId: string; beneficiary: { name: string; bank: string; accountMasked?: string }; amount: number; currency: string } | null>(null);
   const [phase, setPhase] = useState<"idle" | "created" | "otp">("idle");
   const [otp, setOtp] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -184,6 +185,16 @@ export default function PaySupplier({ transactionId, supplierName, defaultCurren
             <span className="text-sm text-white">{existing.beneficiaryName}</span>
           </div>
           <div className="flex justify-between px-4 py-3">
+            <span className="text-xs text-slate-500">Beneficiary Bank</span>
+            <span className="text-sm text-white">{existing.beneficiaryBank}</span>
+          </div>
+          {existing.beneficiaryAccountMasked && (
+            <div className="flex justify-between px-4 py-3">
+              <span className="text-xs text-slate-500">Account</span>
+              <span className="text-sm text-slate-500 font-mono">{existing.beneficiaryAccountMasked}</span>
+            </div>
+          )}
+          <div className="flex justify-between px-4 py-3">
             <span className="text-xs text-slate-500">Amount</span>
             <span className="text-sm font-bold text-amber-400">{existing.amount.toLocaleString()} {existing.currency}</span>
           </div>
@@ -273,6 +284,9 @@ export default function PaySupplier({ transactionId, supplierName, defaultCurren
         <div className="rounded-xl border border-white/10 bg-slate-900/50 divide-y divide-white/5 mb-4">
           <div className="flex justify-between px-4 py-3"><span className="text-xs text-slate-500">Supplier</span><span className="text-sm text-white">{created.beneficiary.name}</span></div>
           <div className="flex justify-between px-4 py-3"><span className="text-xs text-slate-500">Bank</span><span className="text-sm text-white">{created.beneficiary.bank}</span></div>
+          {created.beneficiary.accountMasked && (
+            <div className="flex justify-between px-4 py-3"><span className="text-xs text-slate-500">Account</span><span className="text-sm text-slate-500 font-mono">{created.beneficiary.accountMasked}</span></div>
+          )}
           <div className="flex justify-between px-4 py-3"><span className="text-xs text-slate-500">Amount</span><span className="text-sm font-bold text-amber-400">{created.amount.toLocaleString()} {created.currency}</span></div>
         </div>
         {error && <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3"><p className="text-sm text-red-400">{error}</p></div>}
