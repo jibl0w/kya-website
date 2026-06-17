@@ -11,7 +11,6 @@ export async function POST(req: Request) {
   const { instructionId } = await req.json();
   if (!instructionId) return NextResponse.json({ error: "Missing instruction." }, { status: 400 });
 
-  // Load the instruction; confirm ownership and that it is OTP-verified.
   const { data: instruction } = await supabaseServer
     .from("payment_instructions")
     .select("id, instruction_id, user_id, status, instruction_hash, otp_attestation_hash, expires_at, transaction_id, leg, amount, currency, beneficiary_name, beneficiary_account, beneficiary_bank")
@@ -44,14 +43,12 @@ export async function POST(req: Request) {
   await recordLedgerEvent({
     transactionId: instruction.transaction_id,
     instructionId: instruction.instruction_id,
-    leg: "instruction.leg",
+    leg: instruction.leg,
     eventType: "signed",
     evidenceRef: signature.slice(0, 16),
   });
-  // --- Mock transmission to ROECNY ---
-  // When live: authenticated, mutual-TLS POST of the signed payload to ROECNY,
-  // who verify KYA's signature and the attestation, then execute under mandate.
-  // For now we simulate a successful hand-off.
+
+  // --- Mock transmission ---
   const transmittedAt = new Date().toISOString();
 
   const { error: txErr } = await supabaseServer
@@ -64,19 +61,16 @@ export async function POST(req: Request) {
   await recordLedgerEvent({
     transactionId: instruction.transaction_id,
     instructionId: instruction.instruction_id,
-    leg: "instruction.leg",
+    leg: instruction.leg,
     eventType: "transmitted",
     amount: instruction.amount,
     currency: instruction.currency,
   });
-  // Record the transmission in the inbound/outbound trail for auditability.
-  // (Using bank_notifications as the message log; from_party = roecny target.)
-  // This is an outbound record; real ROECNY ack will arrive as an inbound notification (Step D).
 
   return NextResponse.json({
     success: true,
     status: "transmitted",
-    signature: signature.slice(0, 16) + "…", // show only a prefix to the UI
+    signature: signature.slice(0, 16) + "…",
     transmittedAt,
   });
 }
