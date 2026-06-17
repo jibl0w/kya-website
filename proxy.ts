@@ -6,6 +6,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/terms",
   "/edd-redirect",
+  "/api/bank-notifications/ingest",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

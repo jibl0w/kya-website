@@ -165,3 +165,43 @@ export function signInstruction(parts: {
   const material = [parts.instructionId, parts.instructionHash, parts.otpAttestationHash].join("::");
   return crypto.createHmac("sha256", secret).update(material).digest("hex");
 }
+/**
+ * Verify an inbound notification's signature (proves it genuinely came from
+ * the named party — anti-spoof). MOCK verification for now: checks an HMAC
+ * with a per-party shared secret. At integration, replace with real
+ * verification using each party's public key.
+ */
+export function verifyNotificationSignature(parts: {
+  fromParty: string;
+  notificationType: string;
+  transactionId: string;
+  instructionId: string | null;
+  payloadHash: string;
+  signature: string;
+}): boolean {
+  const secret =
+    process.env["NOTIF_SECRET_" + parts.fromParty.toUpperCase()] ||
+    process.env.NOTIF_SECRET_DEFAULT ||
+    "dev-mock-notif-secret";
+  const material = [
+    parts.fromParty,
+    parts.notificationType,
+    parts.transactionId,
+    parts.instructionId || "",
+    parts.payloadHash,
+  ].join("::");
+  const expected = crypto.createHmac("sha256", secret).update(material).digest("hex");
+  // Constant-time compare to avoid timing leaks.
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(parts.signature));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Compute the payload hash for a notification (what the sender signs).
+ */
+export function computeNotificationPayloadHash(payload: unknown): string {
+  return crypto.createHash("sha256").update(JSON.stringify(payload || {})).digest("hex");
+}
