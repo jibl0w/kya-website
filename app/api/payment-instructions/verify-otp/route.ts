@@ -13,7 +13,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing fields." }, { status: 400 });
   }
 
-  // Load the instruction; confirm ownership and state.
   const { data: instruction } = await supabaseServer
     .from("payment_instructions")
     .select("id, instruction_id, user_id, status, instruction_hash, expires_at, transaction_id, leg")
@@ -29,7 +28,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "This instruction has expired. Please start again." }, { status: 400 });
   }
 
-  // Find the matching, unused, unexpired OTP for this specific instruction.
   const { data: otp } = await supabaseServer
     .from("transaction_otps")
     .select("*")
@@ -46,11 +44,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Verification code has expired. Please request a new one." }, { status: 400 });
   }
 
-  // Consume the OTP.
   await supabaseServer.from("transaction_otps").update({ used: true }).eq("id", otp.id);
 
-  // Compute the OTP attestation hash: binds THIS otp event to THIS instruction's
-  // content hash. Proves the customer authorised exactly this instruction.
   const verifiedAt = new Date().toISOString();
   const attestation = crypto
     .createHash("sha256")
@@ -59,7 +54,6 @@ export async function POST(req: Request) {
     )
     .digest("hex");
 
-  // Advance the instruction to otp_verified, recording the attestation.
   const { error: updErr } = await supabaseServer
     .from("payment_instructions")
     .update({
@@ -71,11 +65,10 @@ export async function POST(req: Request) {
 
   if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
 
-  // Record the ledger event (instruction is guaranteed non-null here).
   await recordLedgerEvent({
     transactionId: instruction.transaction_id,
     instructionId: instruction.instruction_id,
-    leg: "instruction.leg,",
+    leg: instruction.leg,
     eventType: "otp_verified",
     evidenceRef: attestation.slice(0, 16),
   });
