@@ -4,6 +4,7 @@ import {
   verifyNotificationSignature,
   computeNotificationPayloadHash,
 } from "@/lib/payment-instruction";
+import { recordLedgerEvent } from "@/lib/settlement-ledger";
 
 // Inbound endpoint for authenticated notifications from Source / AD / ROECNY.
 // NOTE: this is a machine-to-machine endpoint (no Clerk user). Authentication
@@ -112,6 +113,13 @@ export async function POST(req: Request) {
     }
   }
 
+  await recordLedgerEvent({
+        transactionId,
+        instructionId,
+        leg: "roecny_usd",
+        eventType: "roecny_confirmed",
+        evidenceRef: payload?.reference || notif.id,
+      });
   // (Other ROECNY-relevant types like roecny_usd_received will gate the
   //  customer's ability to initiate the supplier payment — wired with the
   //  stage-gating later.)

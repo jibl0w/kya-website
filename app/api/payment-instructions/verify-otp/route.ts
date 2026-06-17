@@ -1,3 +1,4 @@
+import { recordLedgerEvent } from "@/lib/settlement-ledger";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
   // Load the instruction; confirm ownership and state.
   const { data: instruction } = await supabaseServer
     .from("payment_instructions")
-    .select("id, instruction_id, user_id, status, instruction_hash, expires_at")
+    .select("id, instruction_id, user_id, status, instruction_hash, expires_at" transaction_id)
     .eq("instruction_id", instructionId)
     .maybeSingle();
 
@@ -71,4 +72,11 @@ export async function POST(req: Request) {
   if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
 
   return NextResponse.json({ success: true, verified: true, status: "otp_verified" });
-}
+
+await recordLedgerEvent({
+    transactionId: instruction.transaction_id,
+    instructionId: instruction.instruction_id,
+    leg: "roecny_usd",
+    eventType: "otp_verified",
+    evidenceRef: attestation.slice(0, 16),
+  });}

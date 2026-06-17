@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { signInstruction } from "@/lib/payment-instruction";
+import { recordLedgerEvent } from "@/lib/settlement-ledger";
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -40,6 +41,13 @@ export async function POST(req: Request) {
 
   if (signErr) return NextResponse.json({ error: signErr.message }, { status: 500 });
 
+  await recordLedgerEvent({
+    transactionId: instruction.transaction_id,
+    instructionId: instruction.instruction_id,
+    leg: "roecny_usd",
+    eventType: "signed",
+    evidenceRef: signature.slice(0, 16),
+  });
   // --- Mock transmission to ROECNY ---
   // When live: authenticated, mutual-TLS POST of the signed payload to ROECNY,
   // who verify KYA's signature and the attestation, then execute under mandate.
@@ -53,6 +61,14 @@ export async function POST(req: Request) {
 
   if (txErr) return NextResponse.json({ error: txErr.message }, { status: 500 });
 
+  await recordLedgerEvent({
+    transactionId: instruction.transaction_id,
+    instructionId: instruction.instruction_id,
+    leg: "roecny_usd",
+    eventType: "transmitted",
+    amount: instruction.amount,
+    currency: instruction.currency,
+  });
   // Record the transmission in the inbound/outbound trail for auditability.
   // (Using bank_notifications as the message log; from_party = roecny target.)
   // This is an outbound record; real ROECNY ack will arrive as an inbound notification (Step D).

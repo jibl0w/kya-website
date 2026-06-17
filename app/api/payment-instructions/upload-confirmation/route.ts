@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { recordLedgerEvent } from "@/lib/settlement-ledger";
 
 // Customer uploads their own payment confirmation (the second corroborating
 // source). When both the bank notification AND the customer upload are present,
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
   // Load + verify ownership.
   const { data: instruction } = await supabaseServer
     .from("payment_instructions")
-    .select("id, instruction_id, user_id, status")
+    .select("id, instruction_id, user_id, status, transaction_id")
     .eq("instruction_id", instructionId)
     .maybeSingle();
 
@@ -47,6 +48,13 @@ export async function POST(req: Request) {
     reconciliation_status: "pending",
   });
 
+  await recordLedgerEvent({
+    transactionId: instruction.transaction_id,
+    instructionId,
+    leg: "roecny_usd",
+    eventType: "customer_confirmed",
+    evidenceRef: path,
+  });
   // --- Reconciliation: do we now have BOTH sources? ---
   const { data: confirmations } = await supabaseServer
     .from("payment_confirmations")
@@ -76,6 +84,19 @@ export async function POST(req: Request) {
       .eq("id", instruction.id);
 
     reconciled = true;
+
+    await recordLedgerEvent({
+      transactionId: instruction.transaction_id,
+      instructionId,
+      leg: "roecny_usd",
+      eventType: "reconciled",
+    });
+    await recordLedgerEvent({
+      transactionId: instruction.transaction_id,
+      instructionId,
+      leg: "roecny_usd",
+      eventType: "settled",
+    });
   } else {
     // Only customer upload so far → await bank notification.
     await supabaseServer

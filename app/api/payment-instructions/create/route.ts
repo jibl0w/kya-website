@@ -1,3 +1,4 @@
+import { recordLedgerEvent } from "@/lib/settlement-ledger";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
@@ -128,6 +129,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  await recordLedgerEvent({
+    transactionId,
+    instructionId: instruction.instruction_id,
+    leg: "roecny_usd",
+    eventType: "instruction_created",
+    amount,
+    currency,
+    detail: { beneficiaryName: beneficiary.name },
+  });
   return NextResponse.json({
     success: true,
     instructionId: instruction.instruction_id,
