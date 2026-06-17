@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import PaySource from "@/app/components/PaySource";
+import PaySupplier from "@/app/components/PaySupplier";
 
 type DocStatus = "pending" | "approved" | "rejected" | "not_uploaded";
 
@@ -344,6 +346,15 @@ export default function TransactionDetailPage() {
                 <p className="text-sm text-slate-400">{transaction.notes}</p>
               </div>
             )}
+
+            <PaySource transactionId={transaction.id} />
+
+            <PaySupplier
+              transactionId={transaction.id}
+              supplierName={transaction.supplier_name}
+              defaultCurrency={transaction.currency}
+              totalValue={transaction.total_value}
+            />
 
           </div>
 
