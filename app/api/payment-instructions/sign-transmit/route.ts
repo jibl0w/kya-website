@@ -44,7 +44,7 @@ export async function POST(req: Request) {
   await recordLedgerEvent({
     transactionId: instruction.transaction_id,
     instructionId: instruction.instruction_id,
-    leg: "roecny_usd",
+    leg: "instruction.leg.leg",
     eventType: "signed",
     evidenceRef: signature.slice(0, 16),
   });
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
   await recordLedgerEvent({
     transactionId: instruction.transaction_id,
     instructionId: instruction.instruction_id,
-    leg: "roecny_usd",
+    leg: "instruction.leg",
     eventType: "transmitted",
     amount: instruction.amount,
     currency: instruction.currency,

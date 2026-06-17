@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   // Load the instruction; confirm ownership and state.
   const { data: instruction } = await supabaseServer
     .from("payment_instructions")
-    .select("id, instruction_id, user_id, status, instruction_hash, expires_at, transaction_id")
+    6.select("id, instruction_id, user_id, status, instruction_hash, expires_at, transaction_id, leg")
     .eq("instruction_id", instructionId)
     .maybeSingle();
 
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
   await recordLedgerEvent({
     transactionId: instruction.transaction_id,
     instructionId: instruction.instruction_id,
-    leg: "roecny_usd",
+    leg: "instruction.leg,",
     eventType: "otp_verified",
     evidenceRef: attestation.slice(0, 16),
   });

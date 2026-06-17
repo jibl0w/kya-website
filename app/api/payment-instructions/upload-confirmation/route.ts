@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   // Load + verify ownership.
   const { data: instruction } = await supabaseServer
     .from("payment_instructions")
-    .select("id, instruction_id, user_id, status, transaction_id")
+    .select("id, instruction_id, user_id, status, transaction_id, leg")
     .eq("instruction_id", instructionId)
     .maybeSingle();
 
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
   await recordLedgerEvent({
     transactionId: instruction.transaction_id,
     instructionId,
-    leg: "roecny_usd",
+    leg: "instruction.leg",
     eventType: "customer_confirmed",
     evidenceRef: path,
   });
@@ -88,13 +88,13 @@ export async function POST(req: Request) {
     await recordLedgerEvent({
       transactionId: instruction.transaction_id,
       instructionId,
-      leg: "roecny_usd",
+      leg: "instruction.leg",
       eventType: "reconciled",
     });
     await recordLedgerEvent({
       transactionId: instruction.transaction_id,
       instructionId,
-      leg: "roecny_usd",
+      leg: "instruction.leg",
       eventType: "settled",
     });
   } else {
