@@ -169,8 +169,7 @@ function NewTransactionForm() {
         <div className="mx-auto max-w-xl px-8 py-12">
           <div className="mb-8">
             <p className="text-xs font-medium uppercase tracking-widest text-amber-400 mb-1">Final Step</p>
-            <h1 className="text-3xl font-black mb-2">Review &amp; Confirm</h1>
-            <p className="text-slate-400 text-sm">
+            <h1 className="text-3xl font-black mb-2">Review & Confirm</h1>         <p className="text-slate-400 text-sm">
               Please review the details below. On confirmation, your transaction will be created and the supplier will be notified.
             </p>
           </div>
@@ -216,7 +215,7 @@ function NewTransactionForm() {
             </button>
             <button onClick={handleConfirm} disabled={submitting}
               className="flex-1 rounded-xl bg-amber-400 py-4 font-bold text-slate-950 hover:bg-amber-300 transition disabled:opacity-50 disabled:cursor-not-allowed">
-              {submitting ? "Creating Transaction..." : "Confirm &amp; Create Transaction"}
+              {submitting ? "Creating Transaction..." : "Confirm & Create Transaction"}
             </button>
           </div>
         </div>
