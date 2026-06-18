@@ -7,6 +7,7 @@ const isPublicRoute = createRouteMatcher([
   "/terms",
   "/edd-redirect",
   "/api/bank-notifications/ingest",
+  "/api/dojah/webhook",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
