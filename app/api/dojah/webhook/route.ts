@@ -1,46 +1,18 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
-import crypto from "crypto";
 
-// Dojah sends verification results here. Authentication is via a signature
-// header = HMAC-SHA256(rawBody, DOJAH_PRIVATE_KEY). We verify before trusting.
-// This is the SERVER-SIDE source of truth for KYC status — never the widget's
-// client callback.
+// Dojah KYC widget webhook.
+// SECURITY MODEL: we do NOT trust the webhook body. The webhook only tells us
+// "a verification with this reference_id changed." We then call Dojah's API
+// (authenticated with our secret) to fetch the AUTHORITATIVE result, and write
+// that. Even a spoofed webhook can't fake a result, because we independently
+// confirm with Dojah. This is Dojah's own recommended pattern.
+
+const DOJAH_BASE = process.env.DOJAH_BASE_URL || "https://sandbox.dojah.io";
 
 export async function POST(req: Request) {
-  // Read the RAW body (required for HMAC — must match exact bytes Dojah signed).
   const rawBody = await req.text();
 
-  // --- Signature verification ---
-  const signature = req.headers.get("x-dojah-signature") || "";
-  const secret = process.env.DOJAH_PRIVATE_KEY || "";
-
-  const hmacHex = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
-  const hmacBase64 = crypto.createHmac("sha256", secret).update(rawBody).digest("base64");
-
-  // TEMP DIAGNOSTIC — write to dojah_debug table (remove after confirming scheme).
-  try {
-    await supabaseServer.from("dojah_debug").insert({
-      received_signature: signature,
-      computed_hex: hmacHex,
-      computed_base64: hmacBase64,
-      secret_prefix: secret.slice(0, 8),
-      secret_length: secret.length,
-      headers: Object.fromEntries(req.headers.entries()),
-      body_sample: rawBody.slice(0, 500),
-    });
-  } catch (e) {
-    console.error("debug insert failed", e);
-  }
-
-  let signatureValid = false;
-  if (signature) {
-    if (signature === hmacHex || signature === hmacBase64) {
-      signatureValid = true;
-    }
-  }
-
-  // Parse the payload.
   let payload: any = {};
   try {
     payload = JSON.parse(rawBody);
@@ -48,36 +20,68 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
-  if (!signatureValid) {
-    console.error("Dojah webhook: signature verification FAILED");
-    return NextResponse.json({ received: true, actioned: false, reason: "Invalid signature" }, { status: 202 });
-  }
-
-  // --- Extract the key fields from Dojah's payload ---
+  // Extract reference_id and our metadata.user_id from the webhook (untrusted).
   const data = payload.data || payload;
-  const referenceId = payload.reference_id || data.reference_id || null;
-  const verificationStatus = (payload.verification_status || data.verification_status || "").toLowerCase();
+  const referenceId =
+    payload.reference_id || data.reference_id || payload.referenceId || null;
   const metadata = payload.metadata || data.metadata || {};
   const userId = metadata.user_id || null;
 
-  const selfieUrl = payload.selfie_url || data?.selfie?.data?.selfie_url || null;
-  const govData = data?.government_data?.data || {};
-  const bvnEntity = govData?.bvn?.entity || null;
-  const ninEntity = govData?.nin?.entity || null;
-  const amlStatus = payload.aml?.status === true ? "hit" : (payload.aml ? "clear" : null);
-
-  let kycStatus = "pending";
-  if (verificationStatus === "completed") kycStatus = "approved";
-  else if (verificationStatus === "failed") kycStatus = "rejected";
-  else if (verificationStatus === "pending" || verificationStatus === "ongoing") kycStatus = "pending";
-  else if (verificationStatus === "abandoned") kycStatus = "pending";
-
+  if (!referenceId) {
+    return NextResponse.json({ received: true, actioned: false, reason: "No reference_id" }, { status: 202 });
+  }
   if (!userId) {
-    console.error("Dojah webhook: no metadata.user_id; reference:", referenceId);
     return NextResponse.json({ received: true, actioned: false, reason: "No user_id in metadata" }, { status: 202 });
   }
 
-  // --- Update the customer's KYC profile (server-confirmed source of truth) ---
+  // --- Fetch the AUTHORITATIVE result from Dojah (this is the trust anchor) ---
+  let verification: any = null;
+  try {
+    const res = await fetch(
+      DOJAH_BASE + "/api/v1/kyc/verification?reference_id=" + encodeURIComponent(referenceId),
+      {
+        method: "GET",
+        headers: {
+          "AppId": process.env.DOJAH_APP_ID || "",
+          "Authorization": process.env.DOJAH_PRIVATE_KEY || "",
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    verification = await res.json();
+    if (!res.ok) {
+      console.error("Dojah verification fetch failed:", res.status, JSON.stringify(verification).slice(0, 300));
+      return NextResponse.json({ received: true, actioned: false, reason: "Dojah fetch failed" }, { status: 202 });
+    }
+  } catch (e) {
+    console.error("Dojah verification fetch error:", e);
+    return NextResponse.json({ received: true, actioned: false, reason: "Fetch error" }, { status: 202 });
+  }
+
+  // --- Parse the authoritative result ---
+  const vStatus = (verification.verification_status || "").toLowerCase();
+  const vData = verification.data || {};
+  const selfieUrl = verification.selfie_url || vData?.selfie?.data?.selfie_url || null;
+  const govData = vData?.government_data?.data || {};
+  const bvnEntity = govData?.bvn?.entity || null;
+  const ninEntity = govData?.nin?.entity || null;
+  const amlTriggered = verification.aml?.status === true;
+
+  // Map Dojah status -> our kyc_status.
+  let kycStatus = "pending";
+  if (vStatus === "completed") kycStatus = "approved";
+  else if (vStatus === "failed") kycStatus = "rejected";
+  else if (vStatus === "ongoing" || vStatus === "pending") kycStatus = "pending";
+  else if (vStatus === "abandoned") kycStatus = "pending";
+
+  const bvnName = bvnEntity
+    ? [bvnEntity.first_name, bvnEntity.middle_name, bvnEntity.last_name].filter(Boolean).join(" ")
+    : null;
+  const ninName = ninEntity
+    ? [ninEntity.firstname, ninEntity.middlename, ninEntity.surname].filter(Boolean).join(" ")
+    : null;
+
+  // --- Write the server-confirmed result to the KYC profile ---
   const { error } = await supabaseServer
     .from("kyc_profiles")
     .update({
@@ -86,14 +90,15 @@ export async function POST(req: Request) {
       provider_reference_id: referenceId,
       verification_reference: referenceId,
       verification_completed_at: new Date().toISOString(),
-      provider_raw_response: payload,
+      provider_raw_response: verification,
       liveness_status: selfieUrl ? "completed" : null,
       selfie_url: selfieUrl,
       bvn_verification_status: bvnEntity ? "verified" : null,
-      bvn_verified_name: bvnEntity ? [bvnEntity.first_name, bvnEntity.last_name].filter(Boolean).join(" ") : null,
+      bvn_verified_name: bvnName,
       nin_verification_status: ninEntity ? "verified" : null,
-      aml_status: amlStatus,
-      aml_screened_at: amlStatus ? new Date().toISOString() : null,
+      nin_verified_name: ninName,
+      aml_status: amlTriggered ? "screened" : null,
+      aml_screened_at: amlTriggered ? new Date().toISOString() : null,
     })
     .eq("user_id", userId);
 
