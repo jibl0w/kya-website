@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import crypto from "crypto";
 
-// Dojah sends verification results here. Authentication is via the
-// x-dojah-signature header = HMAC-SHA256(rawBody, DOJAH_PRIVATE_KEY).
-// We verify before trusting anything. This is the SERVER-SIDE source of
-// truth for KYC status — never the widget's client callback.
+// Dojah sends verification results here. Authentication is via a signature
+// header = HMAC-SHA256(rawBody, DOJAH_PRIVATE_KEY). We verify before trusting.
+// This is the SERVER-SIDE source of truth for KYC status — never the widget's
+// client callback.
 
 export async function POST(req: Request) {
   // Read the RAW body (required for HMAC — must match exact bytes Dojah signed).
@@ -18,17 +18,20 @@ export async function POST(req: Request) {
   const hmacHex = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
   const hmacBase64 = crypto.createHmac("sha256", secret).update(rawBody).digest("base64");
 
-  // TEMP DIAGNOSTIC LOGGING — remove after we confirm the scheme.
-  console.log("DOJAH SIG DEBUG", JSON.stringify({
-    receivedSignature: signature,
-    receivedLength: signature.length,
-    computedHex: hmacHex,
-    computedHexLength: hmacHex.length,
-    computedBase64: hmacBase64,
-    secretPrefix: secret.slice(0, 8),
-    secretLength: secret.length,
-    allHeaders: Object.fromEntries(req.headers.entries()),
-  }));
+  // TEMP DIAGNOSTIC — write to dojah_debug table (remove after confirming scheme).
+  try {
+    await supabaseServer.from("dojah_debug").insert({
+      received_signature: signature,
+      computed_hex: hmacHex,
+      computed_base64: hmacBase64,
+      secret_prefix: secret.slice(0, 8),
+      secret_length: secret.length,
+      headers: Object.fromEntries(req.headers.entries()),
+      body_sample: rawBody.slice(0, 500),
+    });
+  } catch (e) {
+    console.error("debug insert failed", e);
+  }
 
   let signatureValid = false;
   if (signature) {
