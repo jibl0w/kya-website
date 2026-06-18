@@ -6,8 +6,44 @@ import { supabaseServer } from "@/lib/supabase-server";
 // verification changed; we then call Dojah's API (authenticated) to fetch the
 // AUTHORITATIVE result and write that. metadata.profile_type routes to the
 // right table (kyc_profiles vs kyb_profiles).
+//
+// EVIDENCE PERSISTENCE: Dojah's image URLs (selfie, ID) expire in ~1 hour.
+// For the durable due-diligence record (relied on by ROECNY/Source), we
+// download the image at webhook time and re-host it in our private
+// kya-documents bucket, storing the permanent storage PATH (not Dojah's URL).
+// The bucket is private; views are served via short-lived signed URLs.
 
 const DOJAH_BASE = process.env.DOJAH_BASE_URL || "https://sandbox.dojah.io";
+const EVIDENCE_BUCKET = "kya-documents";
+
+// Download an image from an (expiring) Dojah URL and re-host in our bucket.
+// Returns the permanent storage path, or null on any failure (never throws —
+// evidence re-hosting must not break the status update).
+async function rehostImage(sourceUrl: string, storagePath: string): Promise<string | null> {
+  try {
+    const res = await fetch(sourceUrl);
+    if (!res.ok) {
+      console.error("rehostImage: fetch failed", res.status, storagePath);
+      return null;
+    }
+    const contentType = res.headers.get("content-type") || "image/jpeg";
+    const arrayBuf = await res.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuf);
+
+    const { error } = await supabaseServer.storage
+      .from(EVIDENCE_BUCKET)
+      .upload(storagePath, bytes, { contentType, upsert: true });
+
+    if (error) {
+      console.error("rehostImage: upload failed", error.message, storagePath);
+      return null;
+    }
+    return storagePath;
+  } catch (e) {
+    console.error("rehostImage: error", e);
+    return null;
+  }
+}
 
 export async function POST(req: Request) {
   const rawBody = await req.text();
@@ -60,7 +96,7 @@ export async function POST(req: Request) {
   // --- Parse common fields ---
   const vStatus = (verification.verification_status || "").toLowerCase();
   const vData = verification.data || {};
-  const selfieUrl = verification.selfie_url || vData?.selfie?.data?.selfie_url || null;
+  const dojahSelfieUrl = verification.selfie_url || vData?.selfie?.data?.selfie_url || null;
   const amlTriggered = verification.aml?.status === true;
 
   let mappedStatus = "pending";
@@ -68,6 +104,15 @@ export async function POST(req: Request) {
   else if (vStatus === "failed") mappedStatus = "rejected";
   else if (vStatus === "ongoing" || vStatus === "pending") mappedStatus = "pending";
   else if (vStatus === "abandoned") mappedStatus = "pending";
+
+  // --- Re-host the selfie to durable private storage (if present) ---
+  let selfieStoragePath: string | null = null;
+  if (dojahSelfieUrl) {
+    selfieStoragePath = await rehostImage(
+      dojahSelfieUrl,
+      `verifications/${userId}/${referenceId}-selfie.jpg`
+    );
+  }
 
   // ========================= KYB BRANCH =========================
   if (profileType === "kyb") {
@@ -85,8 +130,8 @@ export async function POST(req: Request) {
         verification_reference: referenceId,
         verification_completed_at: new Date().toISOString(),
         provider_raw_response: verification,
-        liveness_status: selfieUrl ? "completed" : null,
-        selfie_url: selfieUrl,
+        liveness_status: selfieStoragePath ? "completed" : null,
+        selfie_url: selfieStoragePath,
         cac_verification_status: (cacName || cacNumber) ? "verified" : null,
         cac_verified_name: cacName,
         cac_verified_at: (cacName || cacNumber) ? new Date().toISOString() : null,
@@ -123,8 +168,8 @@ export async function POST(req: Request) {
       verification_reference: referenceId,
       verification_completed_at: new Date().toISOString(),
       provider_raw_response: verification,
-      liveness_status: selfieUrl ? "completed" : null,
-      selfie_url: selfieUrl,
+      liveness_status: selfieStoragePath ? "completed" : null,
+      selfie_url: selfieStoragePath,
       bvn_verification_status: bvnEntity ? "verified" : null,
       bvn_verified_name: bvnName,
       nin_verification_status: ninEntity ? "verified" : null,
