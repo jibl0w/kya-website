@@ -11,14 +11,10 @@ import { supabaseServer } from "@/lib/supabase-server";
 // For the durable due-diligence record (relied on by ROECNY/Source), we
 // download the image at webhook time and re-host it in our private
 // kya-documents bucket, storing the permanent storage PATH (not Dojah's URL).
-// The bucket is private; views are served via short-lived signed URLs.
 
 const DOJAH_BASE = process.env.DOJAH_BASE_URL || "https://sandbox.dojah.io";
 const EVIDENCE_BUCKET = "kya-documents";
 
-// Download an image from an (expiring) Dojah URL and re-host in our bucket.
-// Returns the permanent storage path, or null on any failure (never throws —
-// evidence re-hosting must not break the status update).
 async function rehostImage(sourceUrl: string, storagePath: string): Promise<string | null> {
   try {
     const res = await fetch(sourceUrl);
@@ -93,14 +89,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ received: true, actioned: false, reason: "Fetch error" }, { status: 202 });
   }
 
-  /// --- Parse common fields ---
+  // --- Parse common fields ---
   // The live verification API wraps the result in an `entity` object;
   // sandbox sometimes returns it flat. Handle both.
   const entity = verification.entity || verification;
   const vStatus = (entity.verification_status || "").toLowerCase();
   const vData = entity.data || {};
   const dojahSelfieUrl = entity.selfie_url || vData?.selfie?.data?.selfie_url || null;
+
+  // aml.status: true = hit/flag, false = screened-clear, undefined = not run.
+  const amlRan = entity.aml && typeof entity.aml.status === "boolean";
   const amlTriggered = entity.aml?.status === true;
+  const amlResult = amlRan ? (amlTriggered ? "hit" : "clear") : null;
+
+  // Liveness score (e.g. 85.81) lives under selfie.data.liveness_score.
+  const livenessScore = vData?.selfie?.data?.liveness_score ?? null;
 
   let mappedStatus = "pending";
   if (vStatus === "completed") mappedStatus = "approved";
@@ -138,8 +141,8 @@ export async function POST(req: Request) {
         cac_verification_status: (cacName || cacNumber) ? "verified" : null,
         cac_verified_name: cacName,
         cac_verified_at: (cacName || cacNumber) ? new Date().toISOString() : null,
-        aml_status: amlTriggered ? "screened" : null,
-        aml_screened_at: amlTriggered ? new Date().toISOString() : null,
+        aml_status: amlResult,
+        aml_screened_at: amlResult ? new Date().toISOString() : null,
       })
       .eq("user_id", userId);
 
@@ -156,10 +159,10 @@ export async function POST(req: Request) {
   const ninEntity = govData?.nin?.entity || null;
 
   const bvnName = bvnEntity
-    ? [bvnEntity.first_name, bvnEntity.middle_name, bvnEntity.last_name].filter(Boolean).join(" ")
+    ? [bvnEntity.first_name, bvnEntity.middle_name, bvnEntity.last_name].filter(Boolean).join(" ").trim()
     : null;
   const ninName = ninEntity
-    ? [ninEntity.firstname, ninEntity.middlename, ninEntity.surname].filter(Boolean).join(" ")
+    ? [ninEntity.firstname, ninEntity.middlename, ninEntity.surname].filter(Boolean).join(" ").trim()
     : null;
 
   const { error } = await supabaseServer
@@ -172,13 +175,14 @@ export async function POST(req: Request) {
       verification_completed_at: new Date().toISOString(),
       provider_raw_response: verification,
       liveness_status: selfieStoragePath ? "completed" : null,
+      liveness_probability: livenessScore,
       selfie_url: selfieStoragePath,
       bvn_verification_status: bvnEntity ? "verified" : null,
       bvn_verified_name: bvnName,
       nin_verification_status: ninEntity ? "verified" : null,
       nin_verified_name: ninName,
-      aml_status: amlTriggered ? "screened" : null,
-      aml_screened_at: amlTriggered ? new Date().toISOString() : null,
+      aml_status: amlResult,
+      aml_screened_at: amlResult ? new Date().toISOString() : null,
     })
     .eq("user_id", userId);
 
