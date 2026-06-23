@@ -24,8 +24,7 @@ const KYC_DOCUMENTS = [
   { key: "bvn_confirmation", label: "BVN Confirmation", hint: "Screenshot or document showing your Bank Verification Number" },
   { key: "government_id", label: "Government-Issued ID", hint: "Passport, driver's licence, or national ID — valid and not expired" },
   { key: "proof_of_address", label: "Proof of Address", hint: "Utility bill or bank statement — not older than 3 months" },
-  { key: "selfie_with_id", label: "Selfie Holding ID", hint: "Clear photo of your face holding your government ID document" },
-];
+  ];
 
 const KYB_DOCUMENTS = [
   { key: "cac_certificate", label: "CAC Certificate of Incorporation", hint: "Official certificate issued by Corporate Affairs Commission" },
