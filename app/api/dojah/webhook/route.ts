@@ -93,11 +93,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ received: true, actioned: false, reason: "Fetch error" }, { status: 202 });
   }
 
-  // --- Parse common fields ---
-  const vStatus = (verification.verification_status || "").toLowerCase();
-  const vData = verification.data || {};
-  const dojahSelfieUrl = verification.selfie_url || vData?.selfie?.data?.selfie_url || null;
-  const amlTriggered = verification.aml?.status === true;
+  /// --- Parse common fields ---
+  // The live verification API wraps the result in an `entity` object;
+  // sandbox sometimes returns it flat. Handle both.
+  const entity = verification.entity || verification;
+  const vStatus = (entity.verification_status || "").toLowerCase();
+  const vData = entity.data || {};
+  const dojahSelfieUrl = entity.selfie_url || vData?.selfie?.data?.selfie_url || null;
+  const amlTriggered = entity.aml?.status === true;
 
   let mappedStatus = "pending";
   if (vStatus === "completed") mappedStatus = "approved";
