@@ -104,6 +104,19 @@ export async function POST(req: Request) {
 
   // Liveness score (e.g. 85.81) lives under selfie.data.liveness_score.
   const livenessScore = vData?.selfie?.data?.liveness_score ?? null;
+  const livenessScore = vData?.selfie?.data?.liveness_score ?? null;
+
+  // Face match score (e.g. 99) from selfie data.
+  const faceMatchScore = vData?.selfie?.data?.match_score ?? null;
+  const faceMatchStatus = faceMatchScore != null ? (Number(faceMatchScore) >= 70 ? "matched" : "mismatch") : null;
+
+  // Government ID document verification (passport/licence/etc.).
+  const idData = vData?.id?.data || {};
+  const idVerified = idData?.status === true;
+  const govtIdStatus = idData?.status === true ? "verified" : (idData?.status === false ? "failed" : null);
+  const govtIdName = idVerified && idData?.id_data
+    ? [idData.id_data.first_name, idData.id_data.middle_name, idData.id_data.last_name].filter(Boolean).join(" ").trim()
+    : null;
 
   let mappedStatus = "pending";
   if (vStatus === "completed") mappedStatus = "approved";
@@ -180,6 +193,10 @@ export async function POST(req: Request) {
       bvn_verification_status: bvnEntity ? "verified" : null,
       bvn_verified_name: bvnName,
       nin_verification_status: ninEntity ? "verified" : null,
+      govt_id_verification_status: govtIdStatus,
+      govt_id_verified_name: govtIdName,
+      face_match_status: faceMatchStatus,
+      face_match_confidence: faceMatchScore,
       nin_verified_name: ninName,
       aml_status: amlResult,
       aml_screened_at: amlResult ? new Date().toISOString() : null,
