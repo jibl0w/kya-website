@@ -96,6 +96,7 @@ export async function POST(req: Request) {
   const vStatus = (entity.verification_status || "").toLowerCase();
   const vData = entity.data || {};
   const dojahSelfieUrl = entity.selfie_url || vData?.selfie?.data?.selfie_url || null;
+  const dojahIdUrl = entity.id_url || vData?.id?.data?.id_url || null;
 
   // aml.status: true = hit/flag, false = screened-clear, undefined = not run.
   const amlRan = entity.aml && typeof entity.aml.status === "boolean";
@@ -132,7 +133,13 @@ export async function POST(req: Request) {
       `verifications/${userId}/${referenceId}-selfie.jpg`
     );
   }
-
+  let idDocStoragePath: string | null = null;
+  if (dojahIdUrl) {
+    idDocStoragePath = await rehostImage(
+      dojahIdUrl,
+      `verifications/${userId}/${referenceId}-id.jpg`
+    );
+  }
   // ========================= KYB BRANCH =========================
   if (profileType === "kyb") {
     const bizData = vData?.business_data || {};
@@ -152,6 +159,7 @@ export async function POST(req: Request) {
         liveness_status: selfieStoragePath ? "completed" : null,
         liveness_probability: livenessScore,
         selfie_url: selfieStoragePath,
+        id_document_url: idDocStoragePath,
         govt_id_verification_status: govtIdStatus,
         govt_id_verified_name: govtIdName,
         face_match_status: faceMatchStatus,
@@ -195,6 +203,7 @@ export async function POST(req: Request) {
       liveness_status: selfieStoragePath ? "completed" : null,
       liveness_probability: livenessScore,
       selfie_url: selfieStoragePath,
+      id_document_url: idDocStoragePath,
       bvn_verification_status: bvnEntity ? "verified" : null,
       bvn_verified_name: bvnName,
       nin_verification_status: ninEntity ? "verified" : null,
