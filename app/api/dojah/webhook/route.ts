@@ -104,7 +104,7 @@ export async function POST(req: Request) {
 
   // Liveness score (e.g. 85.81) lives under selfie.data.liveness_score.
   const livenessScore = vData?.selfie?.data?.liveness_score ?? null;
-  const livenessScore = vData?.selfie?.data?.liveness_score ?? null;
+  
 
   // Face match score (e.g. 99) from selfie data.
   const faceMatchScore = vData?.selfie?.data?.match_score ?? null;
