@@ -528,3 +528,22 @@ export async function notifyAdminKybSubmitted(params: {
     `),
   });
 }
+export async function notifyAdminAccountDeleted(params: {
+  userId: string;
+  customerName: string;
+  customerEmail: string;
+}) {
+  await resend.emails.send({
+    from: FROM, to: ADMIN_EMAIL,
+    subject: "KYA Staff — Customer Account Deleted",
+    html: emailTemplate(`
+      ${para("A customer has deleted their account. Their verification records have been retained and marked as closed for compliance purposes.")}
+      ${table(
+        row("Customer", params.customerName) +
+        row("Email", params.customerEmail) +
+        row("User ID", params.userId)
+      )}
+      ${para("Please review the closed account in the staff portal if any action is required.")}
+    `),
+  });
+}
