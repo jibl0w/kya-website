@@ -15,7 +15,7 @@ function generateRef(): string {
   return `KYA-${year}${month}-${random}`;
 }
 
-const STEP_NAMES = [
+const STEPS_APPLY_FX = [
   "Customer Onboarding",
   "Supplier Selection",
   "Trade Setup",
@@ -30,6 +30,20 @@ const STEP_NAMES = [
   "Payment Instruction",
   "Payment Execution",
   "LC Liquidation",
+  "Transaction Completion",
+];
+
+const STEPS_SELF_FUNDED = [
+  "Customer Onboarding",
+  "Supplier Selection",
+  "Trade Setup",
+  "Form M Submission",
+  "Fund ROECNY (Own FX)",
+  "Payment Instruction",
+  "Payment Execution",
+  "Pre-Shipment Inspection",
+  "Shipment",
+  "Document Validation",
   "Transaction Completion",
 ];
 
@@ -76,6 +90,7 @@ export async function POST(req: Request) {
     currency,
     portOfDestination,
     notes,
+    fxRoute,
   } = body;
 
   if (!supplierId || !supplierCategory || !productDescription || !quantity || !unitPrice || !portOfDestination) {
@@ -114,6 +129,7 @@ export async function POST(req: Request) {
       notes,
       status: "draft",
       current_step: 2,
+      fx_route: fxRoute === "self_funded" ? "self_funded" : "apply_fx",
       risk_flag: riskAssessment.riskFlag,
       risk_flag_reason: riskAssessment.riskFlagReason || null,
       monitoring_status: riskAssessment.monitoringStatus,
@@ -123,7 +139,8 @@ export async function POST(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const steps = STEP_NAMES.map((name, i) => ({
+  const stepsList = fxRoute === "self_funded" ? STEPS_SELF_FUNDED : STEPS_APPLY_FX;
+  const steps = stepsList.map((name, i) => ({
     transaction_id: transaction.id,
     step_number: i + 1,
     step_name: name,
@@ -131,6 +148,18 @@ export async function POST(req: Request) {
   }));
 
   await supabaseServer.from("transaction_steps").insert(steps);
+
+  // Self-funded transactions automatically trigger Enhanced Due Diligence (source of funds).
+  if (fxRoute === "self_funded") {
+    await supabaseServer.from("edd_requests").insert({
+      user_id: userId,
+      requested_by: "system",
+      reason: "Self-funded transaction (" + transactionRef + ") — source of funds verification required.",
+      status: "pending",
+      documents_required: ["Source of Funds Declaration", "Proof of FX Source", "Bank Statements — 12 Months"],
+      notes: "Automatically triggered because the customer is self-funding this transaction.",
+    });
+  }
 
   // Notifications: customer, KYA (admin), and supplier. Best-effort — never
   // block transaction creation if an email fails.
