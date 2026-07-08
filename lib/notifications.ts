@@ -547,3 +547,26 @@ export async function notifyAdminAccountDeleted(params: {
     `),
   });
 }
+export async function notifyStaffSelfFundedEdd(params: {
+  transactionRef: string;
+  customerName: string;
+  customerEmail: string;
+  totalValue: number;
+  currency: string;
+}) {
+  await resend.emails.send({
+    from: FROM,
+    to: "transactions@kya.com.ng",
+    subject: "KYA Staff — Self-Funded Transaction EDD Triggered: " + params.transactionRef,
+    html: emailTemplate(`
+      ${para("A self-funded transaction has been created. Enhanced Due Diligence on source of funds has been automatically triggered and must be cleared before payment to the supplier can proceed.")}
+      ${table(
+        row("Transaction", params.transactionRef) +
+        row("Customer", params.customerName) +
+        row("Email", params.customerEmail) +
+        row("Value", params.currency + " " + Number(params.totalValue).toLocaleString())
+      )}
+      ${para("Please review the EDD request and the customer's source-of-funds documentation in the staff portal. Payment remains locked until the EDD is cleared.")}
+    `),
+  });
+}

@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import {
+  notifyStaffSelfFundedEdd,
   notifyAdminTransactionCreated,
   notifyCustomerTransactionCreated,
   notifySupplierTransactionCreated,
@@ -153,6 +154,7 @@ export async function POST(req: Request) {
   if (fxRoute === "self_funded") {
     await supabaseServer.from("edd_requests").insert({
       user_id: userId,
+      transaction_id: transaction.id,
       requested_by: "system",
       reason: "Self-funded transaction (" + transactionRef + ") — source of funds verification required.",
       status: "pending",
@@ -171,6 +173,17 @@ export async function POST(req: Request) {
     const clerkUser = await clerkRes.json();
     const customerEmail = clerkUser.email_addresses?.[0]?.email_address;
     const customerName = ((clerkUser.first_name || "") + " " + (clerkUser.last_name || "")).trim() || "Customer";
+
+    // Self-funded: notify staff that EDD was triggered and payment is locked until cleared.
+    if (fxRoute === "self_funded") {
+      await notifyStaffSelfFundedEdd({
+        transactionRef,
+        customerName,
+        customerEmail: customerEmail || "",
+        totalValue,
+        currency,
+      });
+    }
 
     // Customer confirmation
     if (customerEmail) {
