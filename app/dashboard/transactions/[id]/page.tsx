@@ -66,6 +66,7 @@ export default function TransactionDetailPage() {
   const router = useRouter();
 
   const [transaction, setTransaction] = useState<Transaction | null>(null);
+  const [eddCleared, setEddCleared] = useState(true);
   const [steps, setSteps] = useState<Step[]>([]);
   const [tradeDocs, setTradeDocs] = useState<TransactionDoc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,6 +89,7 @@ export default function TransactionDetailPage() {
       setTransaction(data.transaction);
       setSteps(data.steps);
       setTradeDocs(data.tradeDocs);
+      setEddCleared(data.eddCleared ?? true);
     } catch {
       router.push("/dashboard");
     } finally {
@@ -355,6 +357,8 @@ export default function TransactionDetailPage() {
               supplierName={transaction.supplier_name}
               defaultCurrency={transaction.currency}
               totalValue={transaction.total_value}
+              fxRoute={transaction.fx_route}
+              eddCleared={eddCleared}
             />
 
           </div>

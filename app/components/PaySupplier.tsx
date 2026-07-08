@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 
 interface Props {
   transactionId: string;
+  fxRoute?: string;
+  eddCleared?: boolean;
   supplierName: string;
   defaultCurrency: string;
   totalValue: number;
@@ -21,7 +23,7 @@ interface InstructionState {
   hasCustomerConfirmation: boolean;
 }
 
-export default function PaySupplier({ transactionId, supplierName, defaultCurrency, totalValue }: Props) {
+export default function PaySupplier({ transactionId, supplierName, defaultCurrency, totalValue, fxRoute, eddCleared }: Props) {
   const [loading, setLoading] = useState(true);
   const [existing, setExisting] = useState<InstructionState | null>(null);
 
@@ -146,6 +148,16 @@ export default function PaySupplier({ transactionId, supplierName, defaultCurren
     return (
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
         <p className="text-sm text-slate-500">Loading payment status…</p>
+      </div>
+    );
+  }
+  if (fxRoute === "self_funded" && !eddCleared) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+        <h2 className="font-semibold mb-1">Supplier Payment Locked</h2>
+        <p className="text-xs text-amber-300 mt-2">
+          This is a self-funded transaction. Payment to the supplier is locked until our compliance team clears the Enhanced Due Diligence (source of funds) review. You will be able to authorise payment here once EDD is cleared.
+        </p>
       </div>
     );
   }
