@@ -29,6 +29,7 @@ interface Step {
 interface Transaction {
   id: string;
   transaction_ref: string;
+  fx_route?: string;
   supplier_name: string;
   supplier_category: string;
   product_description: string;
@@ -347,7 +348,7 @@ export default function TransactionDetailPage() {
               </div>
             )}
 
-            <PaySource transactionId={transaction.id} />
+            <PaySource transactionId={transaction.id} fxRoute={transaction.fx_route} />
 
             <PaySupplier
               transactionId={transaction.id}
@@ -360,7 +361,7 @@ export default function TransactionDetailPage() {
 
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6 h-fit">
             <h3 className="font-semibold mb-1">Transaction Progress</h3>
-            <p className="text-xs text-slate-500 mb-5">Step {transaction.current_step} of 13</p>
+            <p className="text-xs text-slate-500 mb-5">Step {transaction.current_step} of {steps.length}</p>
             <div className="flex flex-col gap-1">
               {steps.map(step => (
                 <div key={step.id} className={

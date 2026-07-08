@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 
 interface Props {
   transactionId: string;
+  fxRoute?: string;
 }
 
 interface SourceStatus {
@@ -23,7 +24,7 @@ interface SourceStatus {
   } | null;
 }
 
-export default function PaySource({ transactionId }: Props) {
+export default function PaySource({ transactionId, fxRoute }: Props) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<SourceStatus | null>(null);
   const [amount, setAmount] = useState("");
@@ -136,7 +137,23 @@ export default function PaySource({ transactionId }: Props) {
     return <div className="rounded-2xl border border-white/10 bg-white/5 p-6"><p className="text-sm text-slate-500">Loading Source payment status…</p></div>;
   }
 
-  // --- Not yet FX-authorised: gated ---
+  // --- Self-funded: no FX authorisation needed; show funding guidance, allow payment ---
+  if (fxRoute === "self_funded" && data && !data.fxAuthorised) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+        <h2 className="font-semibold mb-1">Self-Funded Payment</h2>
+        <p className="text-xs text-slate-500 mb-4">You are funding this trade with your own foreign exchange.</p>
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 mb-4">
+          <p className="text-xs text-amber-300">
+            Transfer your own foreign exchange to your ROECNY account. Once received, the funds are blocked and secured for payment to this supplier. Enhanced Due Diligence on your source of funds is required before payment can be released.
+          </p>
+        </div>
+        <p className="text-xs text-slate-500">Once your ROECNY account is funded and your source-of-funds documentation is cleared, you will be able to authorise payment to the supplier here.</p>
+      </div>
+    );
+  }
+
+  // --- Not yet FX-authorised: gated (apply-for-FX route) ---
   if (data && !data.fxAuthorised) {
     return (
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
