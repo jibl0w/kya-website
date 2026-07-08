@@ -64,7 +64,7 @@ function emailTemplate(content: string) {
                 </td>
                 <td align="right" valign="top">
                   <a href="${APP_URL}" style="font-size:12px;color:#C9A84C;text-decoration:none;font-weight:600;">kya.ng</a><br/>
-                  <a href="mailto:info@kya.ng" style="font-size:11px;color:#4A5568;text-decoration:none;">info@kya.ng</a>
+                  <a href="mailto:info@kya.com.ng" style="font-size:11px;color:#4A5568;text-decoration:none;">info@kya.com.ng</a>
                 </td>
               </tr>
             </table>
