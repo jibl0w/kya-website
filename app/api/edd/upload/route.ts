@@ -33,7 +33,8 @@ export async function POST(req: Request) {
 
   try {
     const fileExt = file.name.split(".").pop();
-    const fileName = "edd/" + userId + "/" + eddRequestId + "_" + documentType.replace(/\s+/g, "_") + "_" + Date.now() + "." + fileExt;
+    const safeDocType = documentType.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    const fileName = "edd/" + userId + "/" + eddRequestId + "_" + safeDocType + "_" + Date.now() + "." + fileExt;
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
