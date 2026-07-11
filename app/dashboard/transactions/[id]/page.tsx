@@ -371,19 +371,19 @@ export default function TransactionDetailPage() {
                 <div key={step.id} className={
                   step.status === "complete" ? "flex items-center gap-3 rounded-lg px-3 py-2.5 bg-emerald-500/10" :
                   step.status === "active" ? "flex items-center gap-3 rounded-lg px-3 py-2.5 bg-amber-500/10" :
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 opacity-30"
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 bg-white/5"
                 }>
                   <span className={
                     step.status === "complete" ? "flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold bg-emerald-500 text-slate-950" :
                     step.status === "active" ? "flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold border border-amber-400 text-amber-400" :
-                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold border border-white/10 text-slate-600"
+                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold border border-white/20 text-slate-300"
                   }>
                     {step.status === "complete" ? "✓" : String(step.step_number).padStart(2, "0")}
                   </span>
                   <span className={
                     step.status === "complete" ? "text-xs text-emerald-300" :
                     step.status === "active" ? "text-xs font-medium text-white" :
-                    "text-xs text-slate-600"
+                    "text-xs text-slate-300"
                   }>
                     {step.step_name}
                   </span>
