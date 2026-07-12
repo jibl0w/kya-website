@@ -2,6 +2,34 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+
+// Strip HTML to a readable plain-text version (fixes MIME_MA_MISSING_TEXT spam scoring).
+function htmlToText(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<\/(p|div|tr|h1|h2|h3|li)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&mdash;/g, "—")
+    .replace(/&rarr;/g, "->")
+    .replace(/&middot;/g, "·")
+    .replace(/&[a-z]+;/gi, " ")
+    .replace(/[ \t]+/g, " ")
+    .split("\n").map(l => l.trim()).filter(Boolean).join("\n")
+    .trim();
+}
+
+async function sendEmail(opts: { from?: string; to: string; subject: string; html: string }) {
+  return resend.emails.send({
+    from: opts.from || FROM,
+    to: opts.to,
+    subject: opts.subject,
+    html: opts.html,
+    text: htmlToText(opts.html),
+  });
+}
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://kya.com.ng";
 
@@ -108,7 +136,7 @@ export async function notifyCustomerWelcome(params: {
   customerEmail: string;
   customerName: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: params.customerEmail,
     subject: "Welcome to KYA Digital Services",
     html: emailTemplate(`
@@ -129,7 +157,7 @@ export async function notifyCustomerTermsAccepted(params: {
   customerEmail: string;
   customerName: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: params.customerEmail,
     subject: "KYA — Platform Terms Accepted",
     html: emailTemplate(`
@@ -145,7 +173,7 @@ export async function notifyCustomerKycSubmitted(params: {
   customerEmail: string;
   customerName: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: params.customerEmail,
     subject: "KYA — KYC Verification Submitted",
     html: emailTemplate(`
@@ -162,7 +190,7 @@ export async function notifyCustomerKybSubmitted(params: {
   customerName: string;
   companyName: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: params.customerEmail,
     subject: "KYA — KYB Verification Submitted",
     html: emailTemplate(`
@@ -179,7 +207,7 @@ export async function notifyCustomerDocumentUploaded(params: {
   customerName: string;
   documentType: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: params.customerEmail,
     subject: "KYA — Document Received",
     html: emailTemplate(`
@@ -197,7 +225,7 @@ export async function notifyCustomerDocumentApproved(params: {
   customerName: string;
   documentType: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: params.customerEmail,
     subject: "KYA — Document Approved",
     html: emailTemplate(`
@@ -216,7 +244,7 @@ export async function notifyCustomerDocumentRejected(params: {
   documentType: string;
   rejectionReason: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: params.customerEmail,
     subject: "KYA — Document Requires Attention",
     html: emailTemplate(`
@@ -233,7 +261,7 @@ export async function notifyCustomerAccountVerified(params: {
   customerEmail: string;
   customerName: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: params.customerEmail,
     subject: "KYA — Account Verified — You Can Now Trade",
     html: emailTemplate(`
@@ -265,7 +293,7 @@ export async function notifyCustomerTransactionCreated(params: {
   currency: string;
   transactionId: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: params.customerEmail,
     subject: "KYA — Transaction Created: " + params.transactionRef,
     html: emailTemplate(`
@@ -289,7 +317,7 @@ export async function notifyCustomerTradeDocumentUploaded(params: {
   transactionRef: string;
   transactionId: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: params.customerEmail,
     subject: "KYA — Trade Document Received: " + params.transactionRef,
     html: emailTemplate(`
@@ -312,7 +340,7 @@ export async function notifyCustomerTradeDocumentApproved(params: {
   transactionRef: string;
   transactionId: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: params.customerEmail,
     subject: "KYA — Trade Document Approved: " + params.transactionRef,
     html: emailTemplate(`
@@ -335,7 +363,7 @@ export async function notifyCustomerTradeDocumentRejected(params: {
   transactionId: string;
   rejectionReason: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: params.customerEmail,
     subject: "KYA — Trade Document Requires Attention: " + params.transactionRef,
     html: emailTemplate(`
@@ -361,7 +389,7 @@ export async function notifyCustomerStepAdvanced(params: {
   transactionId?: string;
   note?: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: params.customerEmail,
     subject: "KYA — Transaction Update: " + params.transactionRef,
     html: emailTemplate(`
@@ -395,7 +423,7 @@ export async function notifyCustomerTransactionComplete(params: {
   currency: string;
   transactionId: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: params.customerEmail,
     subject: "KYA — Transaction Complete: " + params.transactionRef,
     html: emailTemplate(`
@@ -426,7 +454,7 @@ export async function notifySupplierTransactionCreated(params: {
   currency: string;
   portOfDestination: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: params.supplierEmail,
     subject: "KYA — New Order Enquiry: " + params.transactionRef,
     html: emailTemplate(`
@@ -453,7 +481,7 @@ export async function notifyAdminDocumentUploaded(params: {
   documentType: string;
   accountType: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: ADMIN_EMAIL,
     subject: "KYA Staff — Document Pending Review",
     html: emailTemplate(`
@@ -475,7 +503,7 @@ export async function notifyAdminTransactionCreated(params: {
   totalValue: number;
   currency: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: ADMIN_EMAIL,
     subject: "KYA Staff — New Transaction: " + params.transactionRef,
     html: emailTemplate(`
@@ -495,7 +523,7 @@ export async function notifyAdminKycSubmitted(params: {
   customerName: string;
   customerEmail: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: ADMIN_EMAIL,
     subject: "KYA Staff — New KYC Submission",
     html: emailTemplate(`
@@ -514,7 +542,7 @@ export async function notifyAdminKybSubmitted(params: {
   companyName: string;
   customerEmail: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: ADMIN_EMAIL,
     subject: "KYA Staff — New KYB Submission",
     html: emailTemplate(`
@@ -533,7 +561,7 @@ export async function notifyAdminAccountDeleted(params: {
   customerName: string;
   customerEmail: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM, to: ADMIN_EMAIL,
     subject: "KYA Staff — Customer Account Deleted",
     html: emailTemplate(`
@@ -554,7 +582,7 @@ export async function notifyStaffSelfFundedEdd(params: {
   totalValue: number;
   currency: string;
 }) {
-  await resend.emails.send({
+  await sendEmail({
     from: FROM,
     to: "transactions@kya.com.ng",
     subject: "KYA Staff — Self-Funded Transaction EDD Triggered: " + params.transactionRef,
