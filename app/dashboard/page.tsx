@@ -33,8 +33,8 @@ export default async function DashboardPage() {
     { data: transactions },
     { data: eddRequests },
   ] = await Promise.all([
-    supabaseServer.from("kyc_profiles").select("id, first_name,last_name").eq("user_id", userId).maybeSingle(),
-    supabaseServer.from("kyb_profiles").select("id, company_name").eq("user_id", userId).maybeSingle(),
+    supabaseServer.from("kyc_profiles").select("id, first_name, last_name, kyc_status, reviewed_by").eq("user_id", userId).maybeSingle(),
+    supabaseServer.from("kyb_profiles").select("id, company_name, kyb_status, reviewed_by").eq("user_id", userId).maybeSingle(),
     supabaseServer.from("documents").select("document_type, status, verification_status, rejection_reason").eq("user_id", userId),
     supabaseServer.from("transactions").select("id, transaction_ref, supplier_name, supplier_category, total_value, currency, status, current_step, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
     supabaseServer.from("edd_requests").select("id, status").eq("user_id", userId).in("status", ["pending", "in_progress"]),
@@ -43,6 +43,9 @@ export default async function DashboardPage() {
   const accountType = kycProfile ? "personal" : kybProfile ? "business" : null;
   const displayName = kycProfile?.first_name || kybProfile?.company_name || null;
 
+const identityApproved =
+    (kycProfile?.kyc_status === "approved" && kycProfile?.reviewed_by) ||
+    (kybProfile?.kyb_status === "approved" && kybProfile?.reviewed_by);
   const docs = documents || [];
   const txns = transactions || [];
   const activeEdd = (eddRequests || []).length;
@@ -213,8 +216,8 @@ export default async function DashboardPage() {
 
             <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
               {[
-                { step: "01", label: accountType === "business" ? "Business KYB" : "Identity Verification", done: !!accountType },
-                { step: "02", label: "Source of Funds", done: !!accountType },
+                { step: "01", label: accountType === "business" ? "Business KYB" : "Identity Verification", done: !!identityApproved },
+                { step: "02", label: "Source of Funds", done: !!identityApproved },
                 { step: "03", label: "Document Upload", done: hasSubmitted },
                 { step: "04", label: "Account Activated", done: allApproved },
               ].map(s => (
