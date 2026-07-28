@@ -80,6 +80,34 @@ export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
+  // Gate: customer must have an APPROVED KYC/KYB *and* all 5 required documents approved by staff.
+  const [{ data: kyc }, { data: kyb }, { data: docRows }] = await Promise.all([
+    supabaseServer.from("kyc_profiles").select("kyc_status, reviewed_by").eq("user_id", userId).maybeSingle(),
+    supabaseServer.from("kyb_profiles").select("kyb_status, reviewed_by").eq("user_id", userId).maybeSingle(),
+    supabaseServer.from("documents").select("status, verification_status").eq("user_id", userId),
+  ]);
+
+  const kycApproved = kyc?.kyc_status === "approved" && !!kyc?.reviewed_by;
+  const kybApproved = kyb?.kyb_status === "approved" && !!kyb?.reviewed_by;
+
+  if (!kycApproved && !kybApproved) {
+    return NextResponse.json(
+      { error: "Your identity verification must be approved before you can create a transaction." },
+      { status: 403 }
+    );
+  }
+
+  const approvedDocs = (docRows || []).filter(
+    (d) => (d.status || d.verification_status) === "approved"
+  ).length;
+
+  if (approvedDocs < 5) {
+    return NextResponse.json(
+      { error: "All required documents must be uploaded and approved by our compliance team before you can create a transaction." },
+      { status: 403 }
+    );
+  }
+
   const body = await req.json();
   const {
     supplierId,
