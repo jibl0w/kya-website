@@ -45,6 +45,7 @@ function NewTransactionForm() {
     currency: "USD",
     portOfDestination: "",
     notes: "",
+    fxRoute: "apply_fx",
   });
 
   useEffect(() => {
@@ -129,6 +130,7 @@ function NewTransactionForm() {
           currency: form.currency,
           portOfDestination: form.portOfDestination,
           notes: form.notes,
+          fxRoute: form.fxRoute,
         }),
       });
 
@@ -366,6 +368,33 @@ function NewTransactionForm() {
                 <label className={lbl}>Additional Notes</label>
                 <textarea value={form.notes} onChange={e => update("notes", e.target.value)}
                   rows={3} className={inp + " resize-none"} placeholder="Any specific instructions or requirements..." />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 mb-6">
+            <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-1">Foreign Exchange Route</h2>
+            <p className="text-xs text-slate-500 mb-4">How will this transaction be funded?</p>
+            <div className="flex flex-col gap-3">
+              <div onClick={() => update("fxRoute", "apply_fx")}
+                className={"rounded-xl border p-4 cursor-pointer transition " + (form.fxRoute === "apply_fx" ? "border-amber-400/50 bg-amber-400/5" : "border-white/10 bg-white/5 hover:border-white/20")}>
+                <div className="flex items-center gap-3">
+                  <div className={"w-4 h-4 rounded-full border-2 flex-shrink-0 " + (form.fxRoute === "apply_fx" ? "border-amber-400 bg-amber-400" : "border-white/30")} />
+                  <div>
+                    <p className="text-sm font-semibold text-white">Apply for FX</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Source foreign exchange through the Authorized Dealer. Includes Form M, Letter of Credit, and CBN FX allocation.</p>
+                  </div>
+                </div>
+              </div>
+              <div onClick={() => update("fxRoute", "self_funded")}
+                className={"rounded-xl border p-4 cursor-pointer transition " + (form.fxRoute === "self_funded" ? "border-amber-400/50 bg-amber-400/5" : "border-white/10 bg-white/5 hover:border-white/20")}>
+                <div className="flex items-center gap-3">
+                  <div className={"w-4 h-4 rounded-full border-2 flex-shrink-0 " + (form.fxRoute === "self_funded" ? "border-amber-400 bg-amber-400" : "border-white/30")} />
+                  <div>
+                    <p className="text-sm font-semibold text-white">Self-Funded</p>
+                    <p className="text-xs text-slate-500 mt-0.5">I already have my own foreign exchange to pay the supplier. Funds are transferred to your ROECNY account. Note: self-funded transactions require Enhanced Due Diligence on source of funds.</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

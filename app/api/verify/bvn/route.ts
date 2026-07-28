@@ -16,7 +16,7 @@ const isSandbox = process.env.DOJAH_ENV === "sandbox";
     const privateKey = isSandbox ? process.env.DOJAH_PRIVATE_KEY_TEST! : process.env.DOJAH_PRIVATE_KEY!;
 
     const dojahRes = await fetch(
-      `https://sandbox.dojah.io/api/v1/kyc/bvn?bvn=${bvn}`,
+      `https://${isSandbox ? "sandbox" : "api"}.dojah.io/api/v1/kyc/bvn?bvn=${bvn}`,
       {
         method: "GET",
         headers: {

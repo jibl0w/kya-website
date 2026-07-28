@@ -35,9 +35,18 @@ export async function GET(
   // Convert stored file paths into time-limited signed URLs before sending to the browser
   const signedDocs = await signDocumentUrls(tradeDocs || []);
 
+  // EDD gating: for self-funded transactions, payment is locked until EDD is cleared.
+  const { data: eddRequests } = await supabaseServer
+    .from("edd_requests")
+    .select("status")
+    .eq("transaction_id", id);
+  const hasEdd = (eddRequests || []).length > 0;
+  const eddCleared = !hasEdd || (eddRequests || []).every((e) => e.status === "cleared");
+
   return NextResponse.json({
     transaction,
     steps: steps || [],
     tradeDocs: signedDocs,
+    eddCleared,
   });
 }

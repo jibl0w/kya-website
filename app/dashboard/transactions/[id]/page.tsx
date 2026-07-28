@@ -29,6 +29,7 @@ interface Step {
 interface Transaction {
   id: string;
   transaction_ref: string;
+  fx_route?: string;
   supplier_name: string;
   supplier_category: string;
   product_description: string;
@@ -65,6 +66,7 @@ export default function TransactionDetailPage() {
   const router = useRouter();
 
   const [transaction, setTransaction] = useState<Transaction | null>(null);
+  const [eddCleared, setEddCleared] = useState(true);
   const [steps, setSteps] = useState<Step[]>([]);
   const [tradeDocs, setTradeDocs] = useState<TransactionDoc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +89,7 @@ export default function TransactionDetailPage() {
       setTransaction(data.transaction);
       setSteps(data.steps);
       setTradeDocs(data.tradeDocs);
+      setEddCleared(data.eddCleared ?? true);
     } catch {
       router.push("/dashboard");
     } finally {
@@ -347,38 +350,40 @@ export default function TransactionDetailPage() {
               </div>
             )}
 
-            <PaySource transactionId={transaction.id} />
+            <PaySource transactionId={transaction.id} fxRoute={transaction.fx_route} />
 
             <PaySupplier
               transactionId={transaction.id}
               supplierName={transaction.supplier_name}
               defaultCurrency={transaction.currency}
               totalValue={transaction.total_value}
+              fxRoute={transaction.fx_route}
+              eddCleared={eddCleared}
             />
 
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6 h-fit">
             <h3 className="font-semibold mb-1">Transaction Progress</h3>
-            <p className="text-xs text-slate-500 mb-5">Step {transaction.current_step} of 13</p>
+            <p className="text-xs text-slate-500 mb-5">Step {transaction.current_step} of {steps.length}</p>
             <div className="flex flex-col gap-1">
               {steps.map(step => (
                 <div key={step.id} className={
                   step.status === "complete" ? "flex items-center gap-3 rounded-lg px-3 py-2.5 bg-emerald-500/10" :
                   step.status === "active" ? "flex items-center gap-3 rounded-lg px-3 py-2.5 bg-amber-500/10" :
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 opacity-30"
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 bg-white/5"
                 }>
                   <span className={
                     step.status === "complete" ? "flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold bg-emerald-500 text-slate-950" :
                     step.status === "active" ? "flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold border border-amber-400 text-amber-400" :
-                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold border border-white/10 text-slate-600"
+                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold border border-white/20 text-slate-300"
                   }>
                     {step.status === "complete" ? "✓" : String(step.step_number).padStart(2, "0")}
                   </span>
                   <span className={
                     step.status === "complete" ? "text-xs text-emerald-300" :
                     step.status === "active" ? "text-xs font-medium text-white" :
-                    "text-xs text-slate-600"
+                    "text-xs text-slate-300"
                   }>
                     {step.step_name}
                   </span>

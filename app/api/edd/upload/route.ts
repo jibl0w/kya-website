@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { getSignedUrl } from "@/lib/signed-url";
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -33,7 +34,8 @@ export async function POST(req: Request) {
 
   try {
     const fileExt = file.name.split(".").pop();
-    const fileName = "edd/" + userId + "/" + eddRequestId + "_" + documentType.replace(/\s+/g, "_") + "_" + Date.now() + "." + fileExt;
+    const safeDocType = documentType.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    const fileName = "edd/" + userId + "/" + eddRequestId + "_" + safeDocType + "_" + Date.now() + "." + fileExt;
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
@@ -138,7 +140,8 @@ export async function POST(req: Request) {
       console.error("Notification error:", err);
     }
 
-    return NextResponse.json({ success: true, id: docId, fileUrl });
+    const signedUrl = await getSignedUrl(fileUrl);
+    return NextResponse.json({ success: true, id: docId, fileUrl: signedUrl || fileUrl });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Upload failed";
     console.error("EDD upload error:", err);

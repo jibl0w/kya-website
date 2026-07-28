@@ -91,6 +91,7 @@ export default async function DashboardPage() {
               {allApproved && (
                 <Link href="/transactions/new" className="text-sm text-slate-400 hover:text-white transition">New Transaction</Link>
               )}
+              <Link href="/dashboard/profile" className="text-sm text-slate-400 hover:text-white transition">My Details</Link>
               <Link href="/dashboard/account" className="text-sm text-slate-400 hover:text-white transition">Account</Link>
               {activeEdd > 0 && (
                 <Link href="/dashboard/edd" className="text-sm text-amber-400 hover:text-amber-300 transition font-medium">
@@ -366,6 +367,13 @@ export default async function DashboardPage() {
             <span className="text-2xl">💳</span>
             <p className="mt-3 font-semibold text-white">Wallets</p>
             <p className="mt-1 text-xs text-slate-500">View your Naira and USD balances</p>
+          </Link>
+
+          <Link href="/dashboard/profile"
+            className="rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-white/20">
+            <span className="text-2xl">👤</span>
+            <p className="mt-3 font-semibold text-white">My Details</p>
+            <p className="mt-1 text-xs text-slate-500">View and update your contact details</p>
           </Link>
 
           <Link href="/dashboard/suppliers"
