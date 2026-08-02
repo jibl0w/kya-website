@@ -59,7 +59,7 @@ const identityApproved =
   const pendingDocs = docs.filter(d => getStatus(d) === "pending").length;
   const rejectedList = docs.filter(d => getStatus(d) === "rejected");
 
-  const requiredCount = accountType ? 5 : 0;
+  const requiredCount = accountType === "personal" ? 4 : accountType === "business" ? 5 : 0;
   const allApproved = requiredCount > 0 && approvedDocs >= requiredCount;
   const hasRejections = rejectedDocs > 0;
   const hasSubmitted = totalDocs > 0;
