@@ -187,7 +187,7 @@ export async function POST(req: Request) {
       requested_by: "system",
       reason: "Self-funded transaction (" + transactionRef + ") — source of funds verification required.",
       status: "pending",
-      documents_required: ["Source of Funds Declaration", "Proof of FX Source", "Bank Statements — 12 Months"],
+      documents_required: ["Bank Statements — 12 Months", "Bank Reference Letter Confirming Source of Funds"],
       notes: "Automatically triggered because the customer is self-funding this transaction.",
     });
   }
