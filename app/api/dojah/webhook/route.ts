@@ -121,7 +121,7 @@ export async function POST(req: Request) {
 
   let mappedStatus = "pending";
   if (vStatus === "completed") mappedStatus = "pending";
-  else if (vStatus === "failed") mappedStatus = "rejected";
+  else if (vStatus === "failed") mappedStatus = "pending";
   else if (vStatus === "ongoing" || vStatus === "pending") mappedStatus = "pending";
   else if (vStatus === "abandoned") mappedStatus = "pending";
   // --- Re-host the selfie to durable private storage (if present) ---
