@@ -34,6 +34,7 @@ function NewTransactionForm() {
 
   const [suppliers, setSuppliers] = useState<VerifiedSupplier[]>([]);
   const [loadingSuppliers, setLoadingSuppliers] = useState(true);
+  const [supplierProducts, setSupplierProducts] = useState<any[]>([]);
 
   const [form, setForm] = useState({
     supplierId: "",
@@ -87,6 +88,14 @@ function NewTransactionForm() {
       supplierName: s ? s.supplier_name : "",
       supplierCategory: s?.primary_category || "",
     }));
+    if (id) {
+      fetch("/api/products/by-supplier?supplierId=" + id)
+        .then((r) => r.json())
+        .then((d) => setSupplierProducts(d.products || []))
+        .catch(() => setSupplierProducts([]));
+    } else {
+      setSupplierProducts([]);
+    }
   }
 
   const update = (field: string, value: string) =>
@@ -322,6 +331,27 @@ function NewTransactionForm() {
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
             <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-5">Product Details</h2>
             <div className="flex flex-col gap-4">
+              {supplierProducts.length > 0 && (
+                <div>
+                  <label className={lbl}>Choose from {form.supplierName}'s products</label>
+                  <select
+                    className={sel}
+                    value=""
+                    onChange={(e) => {
+                      const p = supplierProducts.find((x) => x.id === e.target.value);
+                      if (p) update("productDescription", p.product_name + (p.model_number ? " (" + p.model_number + ")" : ""));
+                    }}
+                  >
+                    <option value="">Select a product to auto-fill…</option>
+                    {supplierProducts.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.product_name}{p.model_number ? " — " + p.model_number : ""}{p.pricing ? "  ·  " + p.pricing.split("/")[0].trim() : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-500 mt-1">Or type your own description below.</p>
+                </div>
+              )}
               <div>
                 <label className={lbl}>Product Description <span className="text-amber-400">*</span></label>
                 <input value={form.productDescription} onChange={e => update("productDescription", e.target.value)}
