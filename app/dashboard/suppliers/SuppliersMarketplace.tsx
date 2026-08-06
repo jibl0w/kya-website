@@ -252,39 +252,8 @@ export default function SuppliersMarketplace({ suppliers }: { suppliers: Supplie
                       </div>
                     </div>
 
-                    {/* Contact */}
-                    {(selectedSupplier.contact_person || selectedSupplier.contact_email || selectedSupplier.website) && (
-                      <div>
-                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Contact</p>
-                        <div className="rounded-xl border border-white/10 bg-white/5 p-4 flex flex-col gap-2">
-                          {selectedSupplier.contact_person && (
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs text-slate-500">Contact</p>
-                              <p className="text-sm text-white">{selectedSupplier.contact_person}</p>
-                            </div>
-                          )}
-                          {selectedSupplier.contact_email && (
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs text-slate-500">Email</p>
-                              <a href={"mailto:" + selectedSupplier.contact_email} className="text-sm text-amber-400 hover:text-amber-300">{selectedSupplier.contact_email}</a>
-                            </div>
-                          )}
-                          {selectedSupplier.contact_phone && (
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs text-slate-500">Phone</p>
-                              <p className="text-sm text-white">{selectedSupplier.contact_phone}</p>
-                            </div>
-                          )}
-                          {selectedSupplier.website && (
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs text-slate-500">Website</p>
-                              <a href={selectedSupplier.website} target="_blank" rel="noopener noreferrer" className="text-sm text-amber-400 hover:text-amber-300 underline">Visit →</a>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
+                  
+            
                     {/* KYA notice */}
                     <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
                       <p className="text-xs text-slate-400 leading-relaxed">

@@ -385,6 +385,13 @@ const identityApproved =
             <p className="mt-3 font-semibold text-white">Supplier Marketplace</p>
             <p className="mt-1 text-xs text-slate-500">Browse KYA verified suppliers</p>
           </Link>
+
+          <Link href="/dashboard/marketplace"
+            className="rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:border-white/20">
+            <span className="text-2xl">🛒</span>
+            <p className="mt-3 font-semibold text-white">Product Marketplace</p>
+            <p className="mt-1 text-xs text-slate-500">Browse products & start a trade</p>
+          </Link>
         </div>
 
         <div className="mt-8 flex items-center justify-between border-t border-white/10 pt-6">
