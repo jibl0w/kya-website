@@ -32,6 +32,8 @@ const CATEGORIES = [
   "Industrial Equipment & Machinery",
   "Construction & Building Materials",
   "Textiles, Packaging & Manufacturing Inputs",
+  "Electric Vehicles & Accessories",
+  "Agriculture & Farming Equipment",
 ];
 
 const categoryColors: Record<string, string> = {
@@ -40,6 +42,8 @@ const categoryColors: Record<string, string> = {
   "Industrial Equipment & Machinery": "text-orange-400 bg-orange-500/10 border-orange-500/20",
   "Construction & Building Materials": "text-stone-400 bg-stone-500/10 border-stone-500/20",
   "Textiles, Packaging & Manufacturing Inputs": "text-purple-400 bg-purple-500/10 border-purple-500/20",
+  "Electric Vehicles & Accessories": "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  "Agriculture & Farming Equipment": "text-green-400 bg-green-500/10 border-green-500/20",
 };
 
 const categoryIcons: Record<string, string> = {
@@ -48,6 +52,8 @@ const categoryIcons: Record<string, string> = {
   "Industrial Equipment & Machinery": "⚙️",
   "Construction & Building Materials": "🏗️",
   "Textiles, Packaging & Manufacturing Inputs": "🧵",
+  "Electric Vehicles & Accessories": "🔋",
+  "Agriculture & Farming Equipment": "🌾",
 };
 
 export default function SuppliersMarketplace({ suppliers }: { suppliers: Supplier[] }) {

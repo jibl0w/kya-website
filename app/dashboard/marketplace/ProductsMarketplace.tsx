@@ -40,6 +40,7 @@ const CATEGORIES = [
   "Construction & Building Materials",
   "Textiles, Packaging & Manufacturing Inputs",
   "Electric Vehicles & Accessories",
+  "Agriculture & Farming Equipment",
 ];
 
 const categoryColors: Record<string, string> = {
@@ -49,6 +50,7 @@ const categoryColors: Record<string, string> = {
   "Construction & Building Materials": "text-stone-400 bg-stone-500/10 border-stone-500/20",
   "Textiles, Packaging & Manufacturing Inputs": "text-purple-400 bg-purple-500/10 border-purple-500/20",
   "Electric Vehicles & Accessories": "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  "Agriculture & Farming Equipment": "text-green-400 bg-green-500/10 border-green-500/20",
 };
 
 const categoryIcons: Record<string, string> = {
@@ -58,6 +60,7 @@ const categoryIcons: Record<string, string> = {
   "Construction & Building Materials": "\uD83C\uDFD7\uFE0F",
   "Textiles, Packaging & Manufacturing Inputs": "\uD83E\uDDF5",
   "Electric Vehicles & Accessories": "\uD83D\uDD0B",
+  "Agriculture & Farming Equipment": "\uD83C\uDF3E",
 };
 
 export default function ProductsMarketplace({ products }: { products: Product[] }) {
