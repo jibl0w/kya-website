@@ -70,6 +70,10 @@ function NewTransactionForm() {
       const s = suppliers.find((x) => x.id === id);
       if (s) selectSupplier(s.id);
     }
+    const product = searchParams.get("product");
+    if (product) {
+      setForm((prev) => ({ ...prev, productDescription: product }));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, suppliers]);
 
