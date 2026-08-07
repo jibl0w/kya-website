@@ -67,6 +67,7 @@ export default function ProductsMarketplace({ products }: { products: Product[] 
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [demoStatus, setDemoStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const router = useRouter();
 
   const filtered = products.filter(p => {
@@ -86,6 +87,24 @@ export default function ProductsMarketplace({ products }: { products: Product[] 
     acc[cat] = products.filter(p => p.category === cat).length;
     return acc;
   }, {} as Record<string, number>);
+
+  async function handleRequestDemo(product: Product) {
+    setDemoStatus("sending");
+    try {
+      const res = await fetch("/api/demo-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productName: product.product_name,
+          modelNumber: product.model_number,
+          supplierName: product.suppliers?.supplier_name || "",
+        }),
+      });
+      setDemoStatus(res.ok ? "sent" : "error");
+    } catch {
+      setDemoStatus("error");
+    }
+  }
 
   function handleStartTransaction(product: Product) {
     const params = new URLSearchParams({
@@ -164,7 +183,7 @@ export default function ProductsMarketplace({ products }: { products: Product[] 
             <div className="flex flex-col gap-3">
               {filtered.map(p => (
                 <div key={p.id}
-                  onClick={() => setSelectedProduct(selectedProduct?.id === p.id ? null : p)}
+                  onClick={() => { setSelectedProduct(selectedProduct?.id === p.id ? null : p); setDemoStatus("idle"); }}
                   className={"rounded-2xl border p-5 cursor-pointer transition " + (selectedProduct?.id === p.id ? "border-amber-400/40 bg-amber-400/5" : "border-white/10 bg-white/5 hover:border-white/20")}>
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="flex items-start gap-3">
@@ -304,6 +323,21 @@ export default function ProductsMarketplace({ products }: { products: Product[] 
                       className="w-full rounded-xl bg-amber-400 py-4 font-bold text-slate-950 hover:bg-amber-300 transition">
                       Start Transaction &rarr;
                     </button>
+
+                    {demoStatus === "sent" ? (
+                      <div className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-3 text-center text-sm text-emerald-400">
+                        ✓ Demo requested — our team will be in touch to arrange it.
+                      </div>
+                    ) : (
+                      <button onClick={() => handleRequestDemo(selectedProduct)}
+                        disabled={demoStatus === "sending"}
+                        className="w-full rounded-xl border border-amber-400/40 py-3 text-sm font-semibold text-amber-400 hover:bg-amber-400/10 transition disabled:opacity-50">
+                        {demoStatus === "sending" ? "Sending…" : "Request a Live Demo"}
+                      </button>
+                    )}
+                    {demoStatus === "error" && (
+                      <p className="text-xs text-red-400 text-center">Couldn't send the request. Please try again.</p>
+                    )}
                     <button onClick={() => setSelectedProduct(null)}
                       className="w-full rounded-xl border border-white/10 py-3 text-sm text-slate-400 hover:text-white transition">
                       Close
